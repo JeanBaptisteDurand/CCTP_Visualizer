@@ -104,6 +104,69 @@ export class EVMIndexer {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  /**
+   * Decode sourceDomain from transaction calldata
+   * receiveMessage(bytes message, bytes attestation) calldata format:
+   * - function selector (4 bytes)
+   * - offset to message (32 bytes)
+   * - offset to attestation (32 bytes)
+   * - message length (32 bytes)
+   * - message data (variable)
+   * 
+   * MessageV2 format: version(4) + sourceDomain(4) + destinationDomain(4) + nonce(8) + sender(32) + messageBody(variable)
+   */
+  private async decodeSourceDomainFromTx(txHash: string): Promise<number | null> {
+    try {
+      const tx = await this.client.getTransaction({ hash: txHash as `0x${string}` });
+      if (!tx.input || tx.input === '0x' || tx.input.length < 10) {
+        return null;
+      }
+
+      // Remove 0x prefix and function selector (4 bytes = 8 hex chars)
+      const calldata = tx.input.slice(2);
+      const body = calldata.slice(8); // Skip function selector
+      
+      if (body.length < 128) {
+        return null; // Not enough data
+      }
+      
+      // First 32 bytes (64 hex chars) = offset to message (relative to start of parameters)
+      const msgOffset = parseInt(body.slice(0, 64), 16);
+      
+      // Calculate position in body (offset is in bytes, body is hex = 2 chars per byte)
+      // Offset is relative to start of parameters (after function selector)
+      const msgPos = msgOffset * 2;
+      
+      if (body.length < msgPos + 64) {
+        return null; // Not enough data for message length
+      }
+      
+      // Next 32 bytes = length of messageBody
+      const msgLen = parseInt(body.slice(msgPos, msgPos + 64), 16);
+      
+      if (body.length < msgPos + 64 + msgLen * 2) {
+        return null; // Not enough data for messageBody
+      }
+      
+      // Extract messageBody hex
+      const msgBodyHex = body.slice(msgPos + 64, msgPos + 64 + msgLen * 2);
+      
+      if (msgBodyHex.length < 16) {
+        return null; // Not enough data for sourceDomain
+      }
+      
+      // Parse MessageV2 header: version(4) + sourceDomain(4) + destinationDomain(4) + ...
+      // sourceDomain is at bytes 4-8 (hex chars 8-16)
+      const sourceDomainHex = msgBodyHex.slice(8, 16);
+      const sourceDomain = parseInt(sourceDomainHex, 16);
+      
+      return sourceDomain;
+    } catch (error) {
+      logger.debug(`${this.metadata.name}: Failed to decode sourceDomain from tx ${txHash}: ${error}`);
+      return null;
+    }
+  }
+
   async getLastProcessedBlock(): Promise<bigint> {
     const result = await pool.query(
       'SELECT get_checkpoint($1) as block',
@@ -126,6 +189,7 @@ export class EVMIndexer {
     const burns: BurnRecord[] = [];
     const mints: MintRecord[] = [];
     const blockTimestamps = new Map<bigint, Date>();
+    const txSourceDomainCache = new Map<string, number | null>(); // Cache for sourceDomain lookups
 
     try {
       // Chunk the request into small ranges
@@ -194,14 +258,25 @@ export class EVMIndexer {
                 });
 
                 const args = decoded.args as any;
+                const txHash = log.transactionHash;
+                
+                // Get sourceDomain from transaction calldata (with caching)
+                let sourceDomain = txSourceDomainCache.get(txHash);
+                if (sourceDomain === undefined) {
+                  sourceDomain = await this.decodeSourceDomainFromTx(txHash);
+                  txSourceDomainCache.set(txHash, sourceDomain);
+                  // Small delay to respect rate limits
+                  await this.delay(DELAY_BETWEEN_RPC_CALLS_MS);
+                }
+                
                 mints.push({
                   chainDomain: this.domainId,
-                  sourceDomain: 0, // We don't have source domain in MintAndWithdraw event
+                  sourceDomain: sourceDomain ?? 0, // Use decoded sourceDomain or 0 if not found
                   amount: args.amount.toString(),
                   token: 'USDC',
                   mintRecipient: args.mintRecipient,
                   blockTime,
-                  txHash: log.transactionHash,
+                  txHash,
                   blockNumber: log.blockNumber,
                   logIndex: log.logIndex ?? 0,
                 });

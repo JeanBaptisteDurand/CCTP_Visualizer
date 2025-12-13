@@ -43,9 +43,26 @@ class ApiClient {
     return response.data;
   }
 
+  // Get incoming details for a chain
+  async getChainIncoming(domain: number, period: Period = '24h'): Promise<Array<{ sourceDomain: number; volume: string }>> {
+    const response = await this.client.get(`/metrics/chain/${domain}/incoming?period=${period}`);
+    return response.data;
+  }
+
   // Get volume chart data
   async getVolumeChart(period: Period = '24h', buckets: number = 20): Promise<Array<{ time: string; in: string; out: string; total: string }>> {
     const response = await this.client.get(`/metrics/volume-chart?period=${period}&buckets=${buckets}`);
+    return response.data;
+  }
+
+  // Get chain volume chart data (outgoing or incoming) with breakdown by chain
+  async getChainVolumeChart(
+    domain: number, 
+    period: Period = '24h', 
+    type: 'outgoing' | 'incoming' = 'outgoing',
+    buckets: number = 20
+  ): Promise<Array<{ time: string; total: string; [key: string]: string }>> {
+    const response = await this.client.get(`/metrics/chain/${domain}/chart?period=${period}&type=${type}&buckets=${buckets}`);
     return response.data;
   }
 

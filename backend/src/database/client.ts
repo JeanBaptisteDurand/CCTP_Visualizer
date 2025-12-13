@@ -486,6 +486,149 @@ export async function getChainOutgoingDetails(chainDomain: number, intervalMinut
 }
 
 /**
+ * Get incoming details for a specific chain (where money comes from)
+ * Returns volume received from each source chain
+ */
+export async function getChainIncomingDetails(chainDomain: number, intervalMinutes: number): Promise<Array<{ sourceDomain: number; volume: string }>> {
+  const query = `
+    SELECT 
+      source_domain as source_domain,
+      COALESCE(SUM(amount), 0)::TEXT as volume
+    FROM mints
+    WHERE chain_domain = $1
+      AND block_time >= NOW() - INTERVAL '${intervalMinutes} minutes'
+      AND token = 'USDC'
+    GROUP BY source_domain
+    ORDER BY volume DESC
+  `;
+
+  try {
+    const result = await pool.query(query, [chainDomain]);
+    return result.rows.map(row => ({
+      sourceDomain: row.source_domain,
+      volume: row.volume || '0',
+    }));
+  } catch (error) {
+    logger.error('Failed to get chain incoming details', error);
+    throw error;
+  }
+}
+
+/**
+ * Get chain volume chart data by time buckets (for outgoing or incoming)
+ * Returns data grouped by destination/source chain
+ * @param chainDomain - The chain domain ID
+ * @param intervalMinutes - Time period to query
+ * @param type - 'outgoing' or 'incoming'
+ * @param buckets - Number of time buckets (default 20)
+ */
+export async function getChainVolumeChart(
+  chainDomain: number,
+  intervalMinutes: number,
+  type: 'outgoing' | 'incoming',
+  buckets: number = 20
+): Promise<Array<{ time: string; total: string; [key: string]: string }>> {
+  const bucketSize = intervalMinutes / buckets;
+
+  let query: string;
+  if (type === 'outgoing') {
+    query = `
+      WITH time_buckets AS (
+        SELECT generate_series(
+          NOW() - INTERVAL '${intervalMinutes} minutes',
+          NOW(),
+          INTERVAL '${bucketSize} minutes'
+        ) as bucket_start
+      ),
+      burns_by_bucket AS (
+        SELECT 
+          DATE_TRUNC('minute', tb.bucket_start) as time,
+          b.destination_domain,
+          COALESCE(SUM(b.amount), 0) as volume
+        FROM time_buckets tb
+        LEFT JOIN burns b ON 
+          b.block_time >= tb.bucket_start 
+          AND b.block_time < tb.bucket_start + INTERVAL '${bucketSize} minutes'
+          AND b.chain_domain = $1
+          AND b.token = 'USDC'
+        GROUP BY tb.bucket_start, b.destination_domain
+      )
+      SELECT 
+        time,
+        COALESCE(SUM(volume), 0)::TEXT as total,
+        COALESCE(
+          jsonb_object_agg(
+            destination_domain::TEXT,
+            volume::TEXT
+          ) FILTER (WHERE destination_domain IS NOT NULL),
+          '{}'::jsonb
+        ) as chains
+      FROM burns_by_bucket
+      GROUP BY time
+      ORDER BY time ASC
+    `;
+  } else {
+    query = `
+      WITH time_buckets AS (
+        SELECT generate_series(
+          NOW() - INTERVAL '${intervalMinutes} minutes',
+          NOW(),
+          INTERVAL '${bucketSize} minutes'
+        ) as bucket_start
+      ),
+      mints_by_bucket AS (
+        SELECT 
+          DATE_TRUNC('minute', tb.bucket_start) as time,
+          m.source_domain,
+          COALESCE(SUM(m.amount), 0) as volume
+        FROM time_buckets tb
+        LEFT JOIN mints m ON 
+          m.block_time >= tb.bucket_start 
+          AND m.block_time < tb.bucket_start + INTERVAL '${bucketSize} minutes'
+          AND m.chain_domain = $1
+          AND m.token = 'USDC'
+        GROUP BY tb.bucket_start, m.source_domain
+      )
+      SELECT 
+        time,
+        COALESCE(SUM(volume), 0)::TEXT as total,
+        COALESCE(
+          jsonb_object_agg(
+            source_domain::TEXT,
+            volume::TEXT
+          ) FILTER (WHERE source_domain IS NOT NULL),
+          '{}'::jsonb
+        ) as chains
+      FROM mints_by_bucket
+      GROUP BY time
+      ORDER BY time ASC
+    `;
+  }
+
+  try {
+    const result = await pool.query(query, [chainDomain]);
+    return result.rows.map(row => {
+      const data: { time: string; total: string; [key: string]: string } = {
+        time: row.time.toISOString(),
+        total: row.total || '0',
+      };
+      
+      // Add each chain as a separate field
+      if (row.chains) {
+        Object.keys(row.chains).forEach(domain => {
+          data[`chain_${domain}`] = row.chains[domain] || '0';
+        });
+      }
+      
+      return data;
+    });
+  } catch (error) {
+    logger.error(`Failed to get chain ${type} volume chart`, error);
+    throw error;
+  }
+}
+
+/**
  * Get volume by time buckets for chart (time series data)
  */
 export async function getVolumeByPeriod(intervalMinutes: number, buckets: number = 20): Promise<Array<{ time: string; in: string; out: string; total: string }>> {

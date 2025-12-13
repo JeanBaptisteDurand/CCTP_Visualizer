@@ -23,6 +23,12 @@ total working : 13 chains
 
 
 
+verif les pendants burn
+selectionner la plage que lon veux
+
+
+
+
 pour readme de fin
 
 comment on peut ameliorer en link burn mint

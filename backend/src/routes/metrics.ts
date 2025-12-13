@@ -9,7 +9,9 @@ import {
   getTotalInVolume,
   getTotalVolume,
   getChainOutgoingDetails,
-  getVolumeByPeriod
+  getChainIncomingDetails,
+  getVolumeByPeriod,
+  getChainVolumeChart
 } from '../database/client';
 import { createLogger } from '../utils/logger';
 
@@ -118,6 +120,23 @@ router.get('/chain/:domain/outgoing', async (req: Request, res: Response) => {
 });
 
 /**
+ * Get incoming details for a specific chain
+ * GET /api/metrics/chain/:domain/incoming?period=1min|5min|15min|1h|4h|24h
+ */
+router.get('/chain/:domain/incoming', async (req: Request, res: Response) => {
+  try {
+    const domain = parseInt(req.params.domain);
+    const period = req.query.period as string || '24h';
+    const intervalMinutes = PERIOD_MAP[period] || 1440;
+    const details = await getChainIncomingDetails(domain, intervalMinutes);
+    res.json(details);
+  } catch (error) {
+    logger.error('Error fetching chain incoming details', error);
+    res.status(500).json({ error: 'Failed to fetch chain incoming details' });
+  }
+});
+
+/**
  * Get volume by time buckets for chart
  * GET /api/metrics/volume-chart?period=1min|5min|15min|1h|4h|24h&buckets=20
  */
@@ -131,6 +150,25 @@ router.get('/volume-chart', async (req: Request, res: Response) => {
   } catch (error) {
     logger.error('Error fetching volume chart data', error);
     res.status(500).json({ error: 'Failed to fetch volume chart data' });
+  }
+});
+
+/**
+ * Get chain volume chart data (outgoing or incoming)
+ * GET /api/metrics/chain/:domain/chart?period=1min|5min|15min|1h|4h|24h&type=outgoing|incoming&buckets=20
+ */
+router.get('/chain/:domain/chart', async (req: Request, res: Response) => {
+  try {
+    const domain = parseInt(req.params.domain);
+    const period = req.query.period as string || '24h';
+    const type = (req.query.type as string || 'outgoing') as 'outgoing' | 'incoming';
+    const buckets = parseInt(req.query.buckets as string) || 20;
+    const intervalMinutes = PERIOD_MAP[period] || 1440;
+    const data = await getChainVolumeChart(domain, intervalMinutes, type, buckets);
+    res.json(data);
+  } catch (error) {
+    logger.error('Error fetching chain volume chart data', error);
+    res.status(500).json({ error: 'Failed to fetch chain volume chart data' });
   }
 });
 
