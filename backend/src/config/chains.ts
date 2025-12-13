@@ -14,9 +14,31 @@ const COMMON_EVM_ADDRESSES = {
 };
 
 // Helper to get QuickNode RPC URL for a chain
+// Supports both RPC_* and QUICKNODE_*_RPC_URL formats for backward compatibility
 function getQuickNodeRPC(chainName: string, fallback: string): string {
-  const envKey = `QUICKNODE_${chainName.toUpperCase().replace(/\s+/g, '_')}_RPC_URL`;
-  return process.env[envKey] || fallback;
+  // Map chain names to env var names (RPC_* format)
+  const chainEnvMap: Record<string, string> = {
+    'ETHEREUM': 'RPC_ETHEREUM',
+    'AVALANCHE': 'RPC_AVALANCHE',
+    'OP_MAINNET': 'RPC_OPTIMISM', // Note: env uses RPC_OPTIMISM
+    'ARBITRUM': 'RPC_ARBITRUM',
+    'BASE': 'RPC_BASE',
+    'POLYGON': 'RPC_POLYGON',
+    'UNICHAIN': 'RPC_UNICHAIN',
+    'LINEA': 'RPC_LINEA',
+    'SONIC': 'RPC_SONIC',
+    'WORLD_CHAIN': 'RPC_WORLDCHAIN', // Note: env uses WORLDCHAIN
+    'MONAD': 'RPC_MONAD',
+    'SEI': 'RPC_SEI',
+    'HYPEREVM': 'RPC_HYPEREVM',
+    'INK': 'RPC_INK',
+  };
+  
+  const envKey = chainEnvMap[chainName] || `RPC_${chainName}`;
+  const legacyEnvKey = `QUICKNODE_${chainName.toUpperCase().replace(/\s+/g, '_')}_RPC_URL`;
+  
+  // Try RPC_* first, then fallback to QUICKNODE_*_RPC_URL, then fallback value
+  return process.env[envKey] || process.env[legacyEnvKey] || fallback;
 }
 
 export const MAINNET_CHAINS: Record<number, ChainMetadata> = {

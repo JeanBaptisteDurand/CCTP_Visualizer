@@ -5,9 +5,7 @@
 export interface ChainMinuteMetrics {
   domain: number;
   name: string;
-  incomingUSDC: string;  // Amount in smallest unit (wei-like)
-  incomingUSYC: string;
+  incomingUSDC: string;  // Amount in smallest unit (6 decimals)
   outgoingUSDC: string;
-  outgoingUSYC: string;
 }
 

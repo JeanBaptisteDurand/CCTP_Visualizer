@@ -5,7 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { testConnection } from '../config/database';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * Basic health check

@@ -3,42 +3,53 @@
  */
 
 import React from 'react';
-import { MetricsPeriod } from '../../types/metrics';
+import { Period } from '../../services/api';
 
 interface PeriodSelectorProps {
-  value: MetricsPeriod;
-  onChange: (period: MetricsPeriod) => void;
+    selected: Period;
+    onChange: (period: Period) => void;
 }
 
-const PeriodSelector: React.FC<PeriodSelectorProps> = ({ value, onChange }) => {
-  const periods = [
-    { value: MetricsPeriod.LAST_24H, label: 'Last 24 Hours' },
-    { value: MetricsPeriod.LAST_7D, label: 'Last 7 Days' },
-    { value: MetricsPeriod.CURRENT_MONTH, label: 'Current Month' }
-  ];
+const PERIODS: Array<{ value: Period; label: string }> = [
+    { value: '1min', label: 'Last Minute' },
+    { value: '5min', label: 'Last 5 Minutes' },
+    { value: '15min', label: 'Last 15 Minutes' },
+    { value: '1h', label: 'Last Hour' },
+    { value: '4h', label: 'Last 4 Hours' },
+    { value: '24h', label: 'Last 24 Hours' },
+];
 
-  return (
-    <div style={{ display: 'flex', gap: '8px' }}>
-      {periods.map(period => (
-        <button
-          key={period.value}
-          onClick={() => onChange(period.value)}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '4px',
-            border: '1px solid #334155',
-            background: value === period.value ? '#3b82f6' : '#1e293b',
-            color: 'white',
-            cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'all 0.2s'
-          }}
-        >
-          {period.label}
-        </button>
-      ))}
-    </div>
-  );
+const PeriodSelector: React.FC<PeriodSelectorProps> = ({ selected, onChange }) => {
+    return (
+        <div style={{
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap',
+            alignItems: 'center'
+        }}>
+            <span style={{ color: '#94a3b8', fontSize: '14px' }}>Period:</span>
+            {PERIODS.map(period => (
+                <button
+                    key={period.value}
+                    onClick={() => onChange(period.value)}
+                    style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid',
+                        borderColor: selected === period.value ? '#3b82f6' : '#334155',
+                        background: selected === period.value ? '#1e3a8a' : '#1e293b',
+                        color: selected === period.value ? '#fff' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: selected === period.value ? '500' : 'normal',
+                        transition: 'all 0.2s'
+                    }}
+                >
+                    {period.label}
+                </button>
+            ))}
+        </div>
+    );
 };
 
 export default PeriodSelector;

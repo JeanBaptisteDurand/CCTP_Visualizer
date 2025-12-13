@@ -225,44 +225,324 @@ export async function getAnomalies(thresholdMinutes: number = 30): Promise<Trans
 }
 
 /**
- * Get per-chain metrics for last minute (USDC/USYC separated)
- * Returns empty data for now - will be populated when tracking is implemented
+ * Get per-chain metrics for a specific time period
+ * Uses burns and mints tables from POC indexer
  */
-export async function getChainMinuteMetrics(): Promise<ChainMinuteMetrics[]> {
-  // TODO: Implement actual query when tracking is added
-  // For now, return empty data for all chains
-  const chains = [
-    { domain: 0, name: 'Ethereum' },
-    { domain: 1, name: 'Avalanche' },
-    { domain: 2, name: 'OP Mainnet' },
-    { domain: 3, name: 'Arbitrum' },
-    { domain: 5, name: 'Solana' },
-    { domain: 6, name: 'Base' },
-    { domain: 7, name: 'Polygon' },
-    { domain: 9, name: 'Linea' },
-    { domain: 10, name: 'Unichain' },
-    { domain: 11, name: 'Codex' },
-    { domain: 12, name: 'Sonic' },
-    { domain: 13, name: 'World Chain' },
-    { domain: 14, name: 'Monad' },
-    { domain: 15, name: 'Sei' },
-    { domain: 16, name: 'BNB Smart Chain' },
-    { domain: 17, name: 'XDC' },
-    { domain: 18, name: 'HyperEVM' },
-    { domain: 19, name: 'Ink' },
-    { domain: 20, name: 'Plume' },
-    { domain: 21, name: 'Arc Testnet' },
-    { domain: 22, name: 'Starknet' }
-  ];
+export async function getChainMinuteMetrics(intervalMinutes: number = 1440): Promise<ChainMinuteMetrics[]> {
+  const query = `
+    WITH chain_out AS (
+      SELECT 
+        chain_domain,
+        SUM(amount) as total_amount
+      FROM burns
+      WHERE block_time >= NOW() - INTERVAL '${intervalMinutes} minutes'
+        AND token = 'USDC'
+      GROUP BY chain_domain
+    ),
+    chain_in AS (
+      SELECT 
+        chain_domain,
+        SUM(amount) as total_amount
+      FROM mints
+      WHERE block_time >= NOW() - INTERVAL '${intervalMinutes} minutes'
+        AND token = 'USDC'
+      GROUP BY chain_domain
+    ),
+    chain_stats AS (
+      SELECT 
+        COALESCE(out.chain_domain, in_stats.chain_domain) as domain,
+        COALESCE(out.total_amount, 0) as out_usdc,
+        COALESCE(in_stats.total_amount, 0) as in_usdc
+      FROM chain_out out
+      FULL OUTER JOIN chain_in in_stats ON out.chain_domain = in_stats.chain_domain
+    )
+    SELECT 
+      cs.domain,
+      cs.out_usdc::TEXT as outgoing_usdc,
+      '0'::TEXT as outgoing_usyc,
+      cs.in_usdc::TEXT as incoming_usdc,
+      '0'::TEXT as incoming_usyc
+    FROM chain_stats cs
+    ORDER BY cs.domain
+  `;
 
-  return chains.map(chain => ({
-    domain: chain.domain,
-    name: chain.name,
-    incomingUSDC: '0',
-    incomingUSYC: '0',
-    outgoingUSDC: '0',
-    outgoingUSYC: '0'
-  }));
+  try {
+    const result = await pool.query(query);
+    const chainMap = new Map<number, ChainMinuteMetrics>();
+
+    // Initialize all supported chains with zeros (14 mainnet chains only)
+    const allChains = [
+      { domain: 0, name: 'Ethereum' },
+      { domain: 1, name: 'Avalanche' },
+      { domain: 2, name: 'OP Mainnet' },
+      { domain: 3, name: 'Arbitrum' },
+      { domain: 6, name: 'Base' },
+      { domain: 7, name: 'Polygon' },
+      { domain: 10, name: 'Unichain' },
+      { domain: 11, name: 'Linea' },
+      { domain: 13, name: 'Sonic' },
+      { domain: 14, name: 'World Chain' },
+      { domain: 15, name: 'Monad' },
+      { domain: 19, name: 'HyperEVM' },
+      { domain: 21, name: 'Ink' },
+    ];
+
+    allChains.forEach(chain => {
+      chainMap.set(chain.domain, {
+        domain: chain.domain,
+        name: chain.name,
+        incomingUSDC: '0',
+        incomingUSYC: '0', // Always 0, USYC not supported
+        outgoingUSDC: '0',
+        outgoingUSYC: '0', // Always 0, USYC not supported
+      });
+    });
+
+    // Update with actual data (USDC only)
+    result.rows.forEach(row => {
+      const existing = chainMap.get(row.domain);
+      if (existing) {
+        existing.incomingUSDC = row.incoming_usdc || '0';
+        existing.incomingUSYC = '0'; // USYC not supported
+        existing.outgoingUSDC = row.outgoing_usdc || '0';
+        existing.outgoingUSYC = '0'; // USYC not supported
+      }
+    });
+
+    return Array.from(chainMap.values());
+  } catch (error) {
+    logger.error('Failed to get chain minute metrics', error);
+    throw error;
+  }
+}
+
+/**
+ * Get OUT volume for a specific route (source → destination) in last minute
+ */
+export async function getRouteOutVolume(
+  sourceDomain: number,
+  destinationDomain: number
+): Promise<string> {
+  const query = `
+    SELECT COALESCE(SUM(amount), 0)::TEXT as volume
+    FROM burns
+    WHERE chain_domain = $1
+      AND destination_domain = $2
+      AND block_time >= NOW() - INTERVAL '1 minute'
+  `;
+
+  try {
+    const result = await pool.query(query, [sourceDomain, destinationDomain]);
+    return result.rows[0]?.volume || '0';
+  } catch (error) {
+    logger.error('Failed to get route OUT volume', error);
+    throw error;
+  }
+}
+
+/**
+ * Get IN volume for a specific route (destination ← source) in last minute
+ */
+export async function getRouteInVolume(
+  destinationDomain: number,
+  sourceDomain: number
+): Promise<string> {
+  const query = `
+    SELECT COALESCE(SUM(amount), 0)::TEXT as volume
+    FROM mints
+    WHERE chain_domain = $1
+      AND source_domain = $2
+      AND block_time >= NOW() - INTERVAL '1 minute'
+  `;
+
+  try {
+    const result = await pool.query(query, [destinationDomain, sourceDomain]);
+    return result.rows[0]?.volume || '0';
+  } catch (error) {
+    logger.error('Failed to get route IN volume', error);
+    throw error;
+  }
+}
+
+/**
+ * Get total volume OUT across all chains for last minute (USDC only)
+ */
+export async function getTotalOutVolume(): Promise<{ usdc: string; usyc: string; total: string }> {
+  const query = `
+    SELECT 
+      COALESCE(SUM(amount), 0)::TEXT as usdc
+    FROM burns
+    WHERE block_time >= NOW() - INTERVAL '1 minute'
+      AND token = 'USDC'
+  `;
+
+  try {
+    const result = await pool.query(query);
+    const row = result.rows[0];
+    const usdc = row.usdc || '0';
+    return {
+      usdc,
+      usyc: '0', // USYC not supported
+      total: usdc, // Total = USDC only
+    };
+  } catch (error) {
+    logger.error('Failed to get total OUT volume', error);
+    throw error;
+  }
+}
+
+/**
+ * Get total volume IN across all chains for last minute (USDC only)
+ */
+export async function getTotalInVolume(): Promise<{ usdc: string; usyc: string; total: string }> {
+  const query = `
+    SELECT 
+      COALESCE(SUM(amount), 0)::TEXT as usdc
+    FROM mints
+    WHERE block_time >= NOW() - INTERVAL '1 minute'
+      AND token = 'USDC'
+  `;
+
+  try {
+    const result = await pool.query(query);
+    const row = result.rows[0];
+    const usdc = row.usdc || '0';
+    return {
+      usdc,
+      usyc: '0', // USYC not supported
+      total: usdc, // Total = USDC only
+    };
+  } catch (error) {
+    logger.error('Failed to get total IN volume', error);
+    throw error;
+  }
+}
+
+/**
+ * Get total volume (IN + OUT) for a specific time period
+ */
+export async function getTotalVolume(intervalMinutes: number): Promise<{ in: string; out: string; total: string }> {
+  const query = `
+    WITH total_out AS (
+      SELECT COALESCE(SUM(amount), 0)::TEXT as out
+      FROM burns
+      WHERE block_time >= NOW() - INTERVAL '${intervalMinutes} minutes'
+        AND token = 'USDC'
+    ),
+    total_in AS (
+      SELECT COALESCE(SUM(amount), 0)::TEXT as in_amount
+      FROM mints
+      WHERE block_time >= NOW() - INTERVAL '${intervalMinutes} minutes'
+        AND token = 'USDC'
+    )
+    SELECT 
+      total_in.in_amount as in_volume,
+      total_out.out as out_volume,
+      (total_in.in_amount::NUMERIC + total_out.out::NUMERIC)::TEXT as total_volume
+    FROM total_in, total_out
+  `;
+
+  try {
+    const result = await pool.query(query);
+    const row = result.rows[0];
+    return {
+      in: row.in_volume || '0',
+      out: row.out_volume || '0',
+      total: row.total_volume || '0',
+    };
+  } catch (error) {
+    logger.error('Failed to get total volume', error);
+    throw error;
+  }
+}
+
+/**
+ * Get outgoing details for a specific chain (where money goes)
+ * Returns volume sent to each destination chain
+ */
+export async function getChainOutgoingDetails(chainDomain: number, intervalMinutes: number): Promise<Array<{ destinationDomain: number; volume: string }>> {
+  const query = `
+    SELECT 
+      destination_domain as destination_domain,
+      COALESCE(SUM(amount), 0)::TEXT as volume
+    FROM burns
+    WHERE chain_domain = $1
+      AND block_time >= NOW() - INTERVAL '${intervalMinutes} minutes'
+      AND token = 'USDC'
+    GROUP BY destination_domain
+    ORDER BY volume DESC
+  `;
+
+  try {
+    const result = await pool.query(query, [chainDomain]);
+    return result.rows.map(row => ({
+      destinationDomain: row.destination_domain,
+      volume: row.volume || '0',
+    }));
+  } catch (error) {
+    logger.error('Failed to get chain outgoing details', error);
+    throw error;
+  }
+}
+
+/**
+ * Get volume by time buckets for chart (time series data)
+ */
+export async function getVolumeByPeriod(intervalMinutes: number, buckets: number = 20): Promise<Array<{ time: string; in: string; out: string; total: string }>> {
+  const bucketSize = intervalMinutes / buckets;
+
+  const query = `
+    WITH time_buckets AS (
+      SELECT generate_series(
+        NOW() - INTERVAL '${intervalMinutes} minutes',
+        NOW(),
+        INTERVAL '${bucketSize} minutes'
+      ) as bucket_start
+    ),
+    burns_by_bucket AS (
+      SELECT 
+        DATE_TRUNC('minute', bucket_start) as time,
+        COALESCE(SUM(b.amount), 0)::TEXT as out_volume
+      FROM time_buckets tb
+      LEFT JOIN burns b ON 
+        b.block_time >= tb.bucket_start 
+        AND b.block_time < tb.bucket_start + INTERVAL '${bucketSize} minutes'
+        AND b.token = 'USDC'
+      GROUP BY tb.bucket_start
+    ),
+    mints_by_bucket AS (
+      SELECT 
+        DATE_TRUNC('minute', bucket_start) as time,
+        COALESCE(SUM(m.amount), 0)::TEXT as in_volume
+      FROM time_buckets tb
+      LEFT JOIN mints m ON 
+        m.block_time >= tb.bucket_start 
+        AND m.block_time < tb.bucket_start + INTERVAL '${bucketSize} minutes'
+        AND m.token = 'USDC'
+      GROUP BY tb.bucket_start
+    )
+    SELECT 
+      COALESCE(b.time, m.time) as time,
+      COALESCE(m.in_volume, '0') as in_volume,
+      COALESCE(b.out_volume, '0') as out_volume,
+      (COALESCE(m.in_volume::NUMERIC, 0) + COALESCE(b.out_volume::NUMERIC, 0))::TEXT as total_volume
+    FROM burns_by_bucket b
+    FULL OUTER JOIN mints_by_bucket m ON b.time = m.time
+    ORDER BY time ASC
+  `;
+
+  try {
+    const result = await pool.query(query);
+    return result.rows.map(row => ({
+      time: row.time.toISOString(),
+      in: row.in_volume || '0',
+      out: row.out_volume || '0',
+      total: row.total_volume || '0',
+    }));
+  } catch (error) {
+    logger.error('Failed to get volume by period', error);
+    throw error;
+  }
 }
 
 /**

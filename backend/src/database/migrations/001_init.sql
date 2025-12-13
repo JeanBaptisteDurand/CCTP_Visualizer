@@ -1,140 +1,89 @@
--- Initial schema for CCTP Visualizer
--- PostgreSQL with TimescaleDB support
+-- CCTP Visualizer POC - Database Schema
+-- Single migration file for EVM-only indexing
 
--- Enable TimescaleDB extension (if available)
-CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
-
--- Table: cctp_transfers
--- Stores individual transfer records through the CCTP pipeline
-CREATE TABLE IF NOT EXISTS cctp_transfers (
-    transfer_id TEXT PRIMARY KEY,
-    source_domain INTEGER NOT NULL,
+-- Table: burns (OUT - depositForBurn events)
+CREATE TABLE IF NOT EXISTS burns (
+    id BIGSERIAL PRIMARY KEY,
+    chain_domain INTEGER NOT NULL,
     destination_domain INTEGER NOT NULL,
-    mode VARCHAR(20) NOT NULL CHECK (mode IN ('FAST', 'STANDARD')),
-    token_type VARCHAR(10) NOT NULL CHECK (token_type IN ('USDC', 'USYC')),
-    amount TEXT NOT NULL,
-    
-    -- Transaction hashes
-    burn_tx_hash TEXT NOT NULL,
-    mint_tx_hash TEXT,
-    
-    -- Timestamps
-    burn_at TIMESTAMPTZ NOT NULL,
-    iris_attested_at TIMESTAMPTZ,
-    mint_at TIMESTAMPTZ,
-    
-    -- Status and metadata
-    status VARCHAR(30) NOT NULL,
-    error_reason TEXT,
-    nonce TEXT NOT NULL,
-    message_body TEXT,
-    sender TEXT NOT NULL,
-    recipient TEXT NOT NULL,
-    min_finality_threshold INTEGER NOT NULL,
-    max_fee TEXT NOT NULL,
-    finality_threshold_executed INTEGER,
-    
-    -- Indexes
+    amount NUMERIC NOT NULL,
+    token TEXT NOT NULL,
+    block_time TIMESTAMPTZ NOT NULL,
+    tx_hash TEXT NOT NULL,
+    block_number BIGINT NOT NULL,
+    log_index INTEGER NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    
+    -- Unique constraint to prevent duplicates
+    UNIQUE(chain_domain, tx_hash, log_index)
 );
 
 -- Indexes for efficient querying
-CREATE INDEX IF NOT EXISTS idx_transfers_burn_at ON cctp_transfers(burn_at DESC);
-CREATE INDEX IF NOT EXISTS idx_transfers_status ON cctp_transfers(status);
-CREATE INDEX IF NOT EXISTS idx_transfers_source_dest ON cctp_transfers(source_domain, destination_domain);
-CREATE INDEX IF NOT EXISTS idx_transfers_mode ON cctp_transfers(mode);
-CREATE INDEX IF NOT EXISTS idx_transfers_token_type ON cctp_transfers(token_type);
-CREATE INDEX IF NOT EXISTS idx_transfers_nonce ON cctp_transfers(source_domain, nonce);
+CREATE INDEX IF NOT EXISTS idx_burns_chain_domain ON burns(chain_domain);
+CREATE INDEX IF NOT EXISTS idx_burns_destination_domain ON burns(destination_domain);
+CREATE INDEX IF NOT EXISTS idx_burns_block_time ON burns(block_time DESC);
+CREATE INDEX IF NOT EXISTS idx_burns_chain_dest ON burns(chain_domain, destination_domain);
+CREATE INDEX IF NOT EXISTS idx_burns_tx_hash ON burns(tx_hash);
 
--- Table: cctp_transfer_metrics_minute
--- Pre-aggregated metrics per minute for fast dashboard queries
-CREATE TABLE IF NOT EXISTS cctp_transfer_metrics_minute (
-    bucket_start TIMESTAMPTZ NOT NULL,
-    from_chain INTEGER NOT NULL,
-    to_chain INTEGER NOT NULL,
-    mode VARCHAR(20) NOT NULL CHECK (mode IN ('FAST', 'STANDARD')),
-    token_type VARCHAR(10) NOT NULL CHECK (token_type IN ('USDC', 'USYC')),
+-- Table: mints (IN - receiveMessage decoded)
+CREATE TABLE IF NOT EXISTS mints (
+    id BIGSERIAL PRIMARY KEY,
+    chain_domain INTEGER NOT NULL,
+    source_domain INTEGER NOT NULL,
+    amount NUMERIC NOT NULL,
+    token TEXT NOT NULL,
+    mint_recipient TEXT NOT NULL,
+    block_time TIMESTAMPTZ NOT NULL,
+    tx_hash TEXT NOT NULL,
+    block_number BIGINT NOT NULL,
+    log_index INTEGER DEFAULT -1,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     
-    -- Aggregated metrics
-    transfer_count INTEGER DEFAULT 0,
-    volume_total TEXT DEFAULT '0',
-    sum_burn_to_mint_ms BIGINT DEFAULT 0,
-    sum_burn_to_iris_ms BIGINT DEFAULT 0,
-    sum_iris_to_mint_ms BIGINT DEFAULT 0,
-    error_count INTEGER DEFAULT 0,
-    incomplete_count INTEGER DEFAULT 0,
-    
-    -- Composite primary key
-    PRIMARY KEY (bucket_start, from_chain, to_chain, mode, token_type)
+    -- Unique constraint to prevent duplicates
+    UNIQUE(chain_domain, tx_hash, log_index)
 );
 
--- Convert to TimescaleDB hypertable if extension is available
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb') THEN
-        PERFORM create_hypertable('cctp_transfer_metrics_minute', 'bucket_start', 
-                                   if_not_exists => TRUE,
-                                   chunk_time_interval => INTERVAL '1 day');
-    END IF;
-END $$;
+-- Indexes for efficient querying
+CREATE INDEX IF NOT EXISTS idx_mints_chain_domain ON mints(chain_domain);
+CREATE INDEX IF NOT EXISTS idx_mints_source_domain ON mints(source_domain);
+CREATE INDEX IF NOT EXISTS idx_mints_block_time ON mints(block_time DESC);
+CREATE INDEX IF NOT EXISTS idx_mints_chain_source ON mints(chain_domain, source_domain);
+CREATE INDEX IF NOT EXISTS idx_mints_tx_hash ON mints(tx_hash);
 
--- Index for time-based queries
-CREATE INDEX IF NOT EXISTS idx_metrics_bucket_start ON cctp_transfer_metrics_minute(bucket_start DESC);
-CREATE INDEX IF NOT EXISTS idx_metrics_route ON cctp_transfer_metrics_minute(from_chain, to_chain);
+-- Table: chain_checkpoints
+-- Stores last processed block per chain for incremental indexing
+CREATE TABLE IF NOT EXISTS chain_checkpoints (
+    chain_domain INTEGER PRIMARY KEY,
+    last_processed_block BIGINT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- Function to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
+-- Function to update checkpoint
+CREATE OR REPLACE FUNCTION update_checkpoint(
+    p_chain_domain INTEGER,
+    p_last_block BIGINT
+) RETURNS VOID AS $$
 BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
+    INSERT INTO chain_checkpoints (chain_domain, last_processed_block, updated_at)
+    VALUES (p_chain_domain, p_last_block, NOW())
+    ON CONFLICT (chain_domain) 
+    DO UPDATE SET 
+        last_processed_block = p_last_block,
+        updated_at = NOW();
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to auto-update updated_at (drop first to make idempotent)
-DROP TRIGGER IF EXISTS update_cctp_transfers_updated_at ON cctp_transfers;
-CREATE TRIGGER update_cctp_transfers_updated_at
-    BEFORE UPDATE ON cctp_transfers
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- Function to upsert metrics (increment counters)
-CREATE OR REPLACE FUNCTION upsert_transfer_metrics(
-    p_bucket_start TIMESTAMPTZ,
-    p_from_chain INTEGER,
-    p_to_chain INTEGER,
-    p_mode VARCHAR(20),
-    p_token_type VARCHAR(10),
-    p_volume TEXT,
-    p_burn_to_mint_ms BIGINT,
-    p_burn_to_iris_ms BIGINT,
-    p_iris_to_mint_ms BIGINT,
-    p_is_error BOOLEAN,
-    p_is_incomplete BOOLEAN
-) RETURNS VOID AS $$
+-- Function to get checkpoint (returns 0 if not found)
+CREATE OR REPLACE FUNCTION get_checkpoint(p_chain_domain INTEGER)
+RETURNS BIGINT AS $$
+DECLARE
+    v_block BIGINT;
 BEGIN
-    INSERT INTO cctp_transfer_metrics_minute (
-        bucket_start, from_chain, to_chain, mode, token_type,
-        transfer_count, volume_total, 
-        sum_burn_to_mint_ms, sum_burn_to_iris_ms, sum_iris_to_mint_ms,
-        error_count, incomplete_count
-    ) VALUES (
-        p_bucket_start, p_from_chain, p_to_chain, p_mode, p_token_type,
-        1, p_volume,
-        p_burn_to_mint_ms, p_burn_to_iris_ms, p_iris_to_mint_ms,
-        CASE WHEN p_is_error THEN 1 ELSE 0 END,
-        CASE WHEN p_is_incomplete THEN 1 ELSE 0 END
-    )
-    ON CONFLICT (bucket_start, from_chain, to_chain, mode, token_type)
-    DO UPDATE SET
-        transfer_count = cctp_transfer_metrics_minute.transfer_count + 1,
-        volume_total = (cctp_transfer_metrics_minute.volume_total::NUMERIC + p_volume::NUMERIC)::TEXT,
-        sum_burn_to_mint_ms = cctp_transfer_metrics_minute.sum_burn_to_mint_ms + p_burn_to_mint_ms,
-        sum_burn_to_iris_ms = cctp_transfer_metrics_minute.sum_burn_to_iris_ms + p_burn_to_iris_ms,
-        sum_iris_to_mint_ms = cctp_transfer_metrics_minute.sum_iris_to_mint_ms + p_iris_to_mint_ms,
-        error_count = cctp_transfer_metrics_minute.error_count + CASE WHEN p_is_error THEN 1 ELSE 0 END,
-        incomplete_count = cctp_transfer_metrics_minute.incomplete_count + CASE WHEN p_is_incomplete THEN 1 ELSE 0 END;
+    SELECT last_processed_block INTO v_block
+    FROM chain_checkpoints
+    WHERE chain_domain = p_chain_domain;
+    
+    RETURN COALESCE(v_block, 0);
 END;
 $$ LANGUAGE plpgsql;
 

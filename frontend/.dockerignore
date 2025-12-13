@@ -1,0 +1,19 @@
+# Dependencies - must be installed fresh in Docker (Alpine Linux)
+node_modules
+
+# Build output
+dist
+
+# Local development files
+.env
+.env.local
+*.log
+
+# IDE
+.vscode
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+

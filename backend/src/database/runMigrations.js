@@ -24,7 +24,7 @@ async function runMigrations() {
     
     await pool.query(sql);
     
-    logger.info('Migrations completed successfully');
+    logger.info('Migration completed successfully');
     await pool.end();
     process.exit(0);
   } catch (error) {

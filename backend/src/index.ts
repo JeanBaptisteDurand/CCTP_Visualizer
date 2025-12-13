@@ -14,6 +14,7 @@ import { testConnection, closePool } from './config/database';
 import metricsRoutes from './routes/metrics';
 import healthRoutes from './routes/health';
 import { createLogger } from './utils/logger';
+import { CCTPScheduler } from './services/CCTPScheduler';
 
 const logger = createLogger('Main');
 
@@ -54,11 +55,19 @@ async function main() {
     logger.info(`Server listening on port ${PORT}`);
   });
 
+  // Start CCTP Scheduler (14 EVM mainnet chains, polls every 5 seconds)
+  const scheduler = new CCTPScheduler();
+  await scheduler.start();
+  logger.info('CCTP Scheduler started (14 EVM chains, QuickNode free tier compatible)');
+
   logger.info('CCTP Visualizer Backend initialized');
 
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down gracefully...');
+    if (scheduler) {
+      scheduler.stop();
+    }
     await closePool();
     process.exit(0);
   };
