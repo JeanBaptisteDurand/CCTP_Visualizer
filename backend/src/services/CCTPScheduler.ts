@@ -25,6 +25,10 @@ const FINALITY_BUFFER = 3n;
 // Higher limit for faster catch-up, parallel burns/mints helps speed
 const MAX_BLOCKS_PER_CYCLE = 500n;
 
+// Blocks to index on first run (last ~500 blocks only to avoid too many RPC calls)
+// This is a small backfill to get recent data without overwhelming the RPC on startup
+const INITIAL_BACKFILL_BLOCKS = 500n;
+
 // Delay between chains (ms) - 300ms = ~3 chains/second, safe for 15 RPS limit
 const DELAY_BETWEEN_CHAINS_MS = 300;
 
@@ -174,10 +178,12 @@ export class CCTPScheduler {
       // Determine block range (limited to MAX_BLOCKS_PER_CYCLE)
       let fromBlock: bigint;
       if (lastBlock === 0n) {
-        // First run: index last 5000 blocks to catch recent CCTP activity
-        // Some chains have low CCTP activity, need more blocks to find events
-        fromBlock = safeBlock - 5000n;
-        if (fromBlock < 0n) fromBlock = 0n;
+        // First run: index only last 1 hour to avoid too many RPC calls at startup
+        // This is a conservative estimate that covers most EVM chains
+        fromBlock = safeBlock > INITIAL_BACKFILL_BLOCKS
+          ? safeBlock - INITIAL_BACKFILL_BLOCKS
+          : 0n;
+        logger.info(`${chainName}: First run - indexing last ${INITIAL_BACKFILL_BLOCKS} blocks`);
       } else {
         fromBlock = lastBlock + 1n;
       }

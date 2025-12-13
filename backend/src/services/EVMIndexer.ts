@@ -269,9 +269,19 @@ export class EVMIndexer {
                   await this.delay(DELAY_BETWEEN_RPC_CALLS_MS);
                 }
                 
+                // Use -1 for unknown source domains (will be filtered in queries)
+                // Never use 0 as default since that's Ethereum's domain and would be misleading
+                const resolvedSourceDomain = sourceDomain ?? -1;
+                
+                // Skip if source domain equals current chain (impossible in CCTP)
+                if (resolvedSourceDomain === this.domainId) {
+                  logger.warn(`${this.metadata.name}: Skipping mint with invalid source domain = current chain`);
+                  continue;
+                }
+                
                 mints.push({
                   chainDomain: this.domainId,
-                  sourceDomain: sourceDomain ?? 0, // Use decoded sourceDomain or 0 if not found
+                  sourceDomain: resolvedSourceDomain,
                   amount: args.amount.toString(),
                   token: 'USDC',
                   mintRecipient: args.mintRecipient,

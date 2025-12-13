@@ -488,6 +488,7 @@ export async function getChainOutgoingDetails(chainDomain: number, intervalMinut
 /**
  * Get incoming details for a specific chain (where money comes from)
  * Returns volume received from each source chain
+ * Includes unknown sources (-1) for display, filters out same-chain sources (impossible in CCTP)
  */
 export async function getChainIncomingDetails(chainDomain: number, intervalMinutes: number): Promise<Array<{ sourceDomain: number; volume: string }>> {
   const query = `
@@ -498,6 +499,7 @@ export async function getChainIncomingDetails(chainDomain: number, intervalMinut
     WHERE chain_domain = $1
       AND block_time >= NOW() - INTERVAL '${intervalMinutes} minutes'
       AND token = 'USDC'
+      AND source_domain != $1
     GROUP BY source_domain
     ORDER BY volume DESC
   `;
@@ -587,6 +589,7 @@ export async function getChainVolumeChart(
           AND m.block_time < tb.bucket_start + INTERVAL '${bucketSize} minutes'
           AND m.chain_domain = $1
           AND m.token = 'USDC'
+          AND m.source_domain != $1
         GROUP BY tb.bucket_start, m.source_domain
       )
       SELECT 

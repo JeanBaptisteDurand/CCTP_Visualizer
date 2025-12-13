@@ -4,6 +4,7 @@
  */
 
 export const CHAIN_NAMES: Record<number, string> = {
+  [-1]: 'Unknown',
   0: 'Ethereum',
   1: 'Avalanche',
   2: 'OP',

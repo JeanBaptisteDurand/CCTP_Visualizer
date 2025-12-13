@@ -26,6 +26,9 @@ total working : 13 chains
 verif les pendants burn
 selectionner la plage que lon veux
 
+opti le fetch
+fix unknow in incomming volume breakdown
+
 
 
 
