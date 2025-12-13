@@ -4,7 +4,7 @@
 
 import { pool } from '../config/database';
 import { Transfer, TransferStatus, TransferMode, TokenType } from '../types/transfer';
-import { TransferMetricsBucket } from '../types/metrics';
+import { TransferMetricsBucket, ChainMinuteMetrics } from '../types/metrics';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('DatabaseClient');
@@ -68,11 +68,11 @@ export async function upsertTransfer(transfer: Transfer): Promise<void> {
  */
 export async function getTransferById(transferId: string): Promise<Transfer | null> {
   const query = 'SELECT * FROM cctp_transfers WHERE transfer_id = $1';
-  
+
   try {
     const result = await pool.query(query, [transferId]);
     if (result.rows.length === 0) return null;
-    
+
     return mapRowToTransfer(result.rows[0]);
   } catch (error) {
     logger.error('Failed to get transfer', { transferId, error });
@@ -85,7 +85,7 @@ export async function getTransferById(transferId: string): Promise<Transfer | nu
  */
 export async function getTransfersByStatus(status: TransferStatus, limit: number = 100): Promise<Transfer[]> {
   const query = 'SELECT * FROM cctp_transfers WHERE status = $1 ORDER BY burn_at DESC LIMIT $2';
-  
+
   try {
     const result = await pool.query(query, [status, limit]);
     return result.rows.map(mapRowToTransfer);
@@ -104,7 +104,7 @@ export async function getPendingTransfers(): Promise<Transfer[]> {
     WHERE status IN ($1, $2, $3) 
     ORDER BY burn_at ASC
   `;
-  
+
   try {
     const result = await pool.query(query, [
       TransferStatus.MESSAGE_SENT,
@@ -222,6 +222,47 @@ export async function getAnomalies(thresholdMinutes: number = 30): Promise<Trans
     logger.error('Failed to get anomalies', error);
     throw error;
   }
+}
+
+/**
+ * Get per-chain metrics for last minute (USDC/USYC separated)
+ * Returns empty data for now - will be populated when tracking is implemented
+ */
+export async function getChainMinuteMetrics(): Promise<ChainMinuteMetrics[]> {
+  // TODO: Implement actual query when tracking is added
+  // For now, return empty data for all chains
+  const chains = [
+    { domain: 0, name: 'Ethereum' },
+    { domain: 1, name: 'Avalanche' },
+    { domain: 2, name: 'OP Mainnet' },
+    { domain: 3, name: 'Arbitrum' },
+    { domain: 5, name: 'Solana' },
+    { domain: 6, name: 'Base' },
+    { domain: 7, name: 'Polygon' },
+    { domain: 9, name: 'Linea' },
+    { domain: 10, name: 'Unichain' },
+    { domain: 11, name: 'Codex' },
+    { domain: 12, name: 'Sonic' },
+    { domain: 13, name: 'World Chain' },
+    { domain: 14, name: 'Monad' },
+    { domain: 15, name: 'Sei' },
+    { domain: 16, name: 'BNB Smart Chain' },
+    { domain: 17, name: 'XDC' },
+    { domain: 18, name: 'HyperEVM' },
+    { domain: 19, name: 'Ink' },
+    { domain: 20, name: 'Plume' },
+    { domain: 21, name: 'Arc Testnet' },
+    { domain: 22, name: 'Starknet' }
+  ];
+
+  return chains.map(chain => ({
+    domain: chain.domain,
+    name: chain.name,
+    incomingUSDC: '0',
+    incomingUSYC: '0',
+    outgoingUSDC: '0',
+    outgoingUSYC: '0'
+  }));
 }
 
 /**

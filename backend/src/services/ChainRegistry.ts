@@ -1,17 +1,11 @@
 /**
- * Chain Registry Service
+ * Chain Registry Service - Simplified
  * Manages and coordinates all chain watchers
  */
 
 import { IChainWatcher } from '../chains/IChainWatcher';
-import { EthereumWatcher } from '../chains/ethereum';
-import { BaseWatcher } from '../chains/base';
-import { ArbitrumWatcher } from '../chains/arbitrum';
-import { AvalancheWatcher } from '../chains/avalanche';
-import { OptimismWatcher } from '../chains/optimism';
-import { PolygonWatcher } from '../chains/polygon';
-import { SolanaWatcher } from '../chains/solana';
-import { StarknetWatcher } from '../chains/starknet';
+import { createEVMWatchers } from '../chains/evmchain';
+import { createNonEVMWatchers } from '../chains/non_evmchain';
 import { TransferService } from './TransferService';
 import { createLogger } from '../utils/logger';
 
@@ -27,27 +21,12 @@ export class ChainRegistry {
   }
 
   /**
-   * Initialize all chain watchers
+   * Initialize all chain watchers from config
    */
   private initializeWatchers(): void {
-    // EVM chains
-    const evmWatchers = [
-      new EthereumWatcher(),    // Domain 0
-      new AvalancheWatcher(),   // Domain 1
-      new OptimismWatcher(),    // Domain 2
-      new ArbitrumWatcher(),    // Domain 3
-      new BaseWatcher(),        // Domain 6
-      new PolygonWatcher()      // Domain 7
-      // Add more EVM chains as needed
-    ];
-
-    // Non-EVM chains
-    const nonEvmWatchers = [
-      new SolanaWatcher(),      // Domain 5
-      new StarknetWatcher()     // Domain 25
-    ];
-
-    const allWatchers = [...evmWatchers, ...nonEvmWatchers];
+    const evmWatchers = createEVMWatchers();
+    const nonEvmWatchers = createNonEVMWatchers();
+    const allWatchers: IChainWatcher[] = [...evmWatchers, ...nonEvmWatchers];
 
     for (const watcher of allWatchers) {
       this.watchers.set(watcher.getDomainId(), watcher);
@@ -129,7 +108,7 @@ export class ChainRegistry {
    */
   getStatus(): Record<number, boolean> {
     const status: Record<number, boolean> = {};
-    
+
     for (const [domainId, watcher] of this.watchers) {
       status[domainId] = watcher.isRunning();
     }

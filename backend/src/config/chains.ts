@@ -13,6 +13,12 @@ const COMMON_EVM_ADDRESSES = {
   messageHelper: '0xec546b6B005471ECf012e5aF77FBeC07e0FD8f78'
 };
 
+// Helper to get QuickNode RPC URL for a chain
+function getQuickNodeRPC(chainName: string, fallback: string): string {
+  const envKey = `QUICKNODE_${chainName.toUpperCase().replace(/\s+/g, '_')}_RPC_URL`;
+  return process.env[envKey] || fallback;
+}
+
 export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
   // Domain 0: Ethereum
   0: {
@@ -20,7 +26,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Ethereum',
     vmType: VMType.EVM,
     chainId: 1,
-    rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
+    rpcUrl: getQuickNodeRPC('ETHEREUM', process.env.QUICKNODE_RPC_URL || 'https://eth.llamarpc.com'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: true
@@ -44,7 +50,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Avalanche',
     vmType: VMType.EVM,
     chainId: 43114,
-    rpcUrl: process.env.AVALANCHE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc',
+    rpcUrl: getQuickNodeRPC('AVALANCHE', process.env.QUICKNODE_RPC_URL || 'https://api.avax.network/ext/bc/C/rpc'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -67,7 +73,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'OP Mainnet',
     vmType: VMType.EVM,
     chainId: 10,
-    rpcUrl: process.env.OP_MAINNET_RPC_URL || 'https://mainnet.optimism.io',
+    rpcUrl: getQuickNodeRPC('OP_MAINNET', process.env.QUICKNODE_RPC_URL || 'https://mainnet.optimism.io'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -90,7 +96,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Arbitrum',
     vmType: VMType.EVM,
     chainId: 42161,
-    rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+    rpcUrl: getQuickNodeRPC('ARBITRUM', process.env.QUICKNODE_RPC_URL || 'https://arb1.arbitrum.io/rpc'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -113,7 +119,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Solana',
     vmType: VMType.SOLANA,
     chainId: 'mainnet-beta',
-    rpcUrl: process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com',
+    rpcUrl: getQuickNodeRPC('SOLANA', process.env.QUICKNODE_RPC_URL || 'https://api.mainnet-beta.solana.com'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -137,7 +143,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Base',
     vmType: VMType.EVM,
     chainId: 8453,
-    rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+    rpcUrl: getQuickNodeRPC('BASE', process.env.QUICKNODE_RPC_URL || 'https://mainnet.base.org'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -160,7 +166,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Polygon PoS',
     vmType: VMType.EVM,
     chainId: 137,
-    rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
+    rpcUrl: getQuickNodeRPC('POLYGON', process.env.QUICKNODE_RPC_URL || 'https://polygon-rpc.com'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -183,7 +189,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Unichain',
     vmType: VMType.EVM,
     chainId: 1301,
-    rpcUrl: process.env.UNICHAIN_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('UNICHAIN', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -206,7 +212,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Linea',
     vmType: VMType.EVM,
     chainId: 59144,
-    rpcUrl: process.env.LINEA_RPC_URL || 'https://rpc.linea.build',
+    rpcUrl: getQuickNodeRPC('LINEA', process.env.QUICKNODE_RPC_URL || 'https://rpc.linea.build'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -229,7 +235,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Codex',
     vmType: VMType.EVM,
     chainId: 88888888,
-    rpcUrl: process.env.CODEX_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('CODEX', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -252,7 +258,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Sonic',
     vmType: VMType.EVM,
     chainId: 146,
-    rpcUrl: process.env.SONIC_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('SONIC', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -275,7 +281,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'World Chain',
     vmType: VMType.EVM,
     chainId: 480,
-    rpcUrl: process.env.WORLD_CHAIN_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('WORLD_CHAIN', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -298,7 +304,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Monad',
     vmType: VMType.EVM,
     chainId: 41454,
-    rpcUrl: process.env.MONAD_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('MONAD', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -321,7 +327,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Sei',
     vmType: VMType.EVM,
     chainId: 1329,
-    rpcUrl: process.env.SEI_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('SEI', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -344,7 +350,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'BNB Smart Chain',
     vmType: VMType.EVM,
     chainId: 56,
-    rpcUrl: process.env.BNB_RPC_URL || 'https://bsc-dataseed.binance.org',
+    rpcUrl: getQuickNodeRPC('BNB', process.env.QUICKNODE_RPC_URL || 'https://bsc-dataseed.binance.org'),
     tokenSupport: {
       supportsUSDC: false,
       supportsUSYC: true  // BNB only supports USYC
@@ -367,7 +373,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'XDC',
     vmType: VMType.EVM,
     chainId: 50,
-    rpcUrl: process.env.XDC_RPC_URL || 'https://rpc.xdc.org',
+    rpcUrl: getQuickNodeRPC('XDC', process.env.QUICKNODE_RPC_URL || 'https://rpc.xdc.org'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -390,7 +396,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'HyperEVM',
     vmType: VMType.EVM,
     chainId: 998,
-    rpcUrl: process.env.HYPEREVM_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('HYPEREVM', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -413,7 +419,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Ink',
     vmType: VMType.EVM,
     chainId: 57073,
-    rpcUrl: process.env.INK_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('INK', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -436,7 +442,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Plume',
     vmType: VMType.EVM,
     chainId: 98865,
-    rpcUrl: process.env.PLUME_RPC_URL || '',
+    rpcUrl: getQuickNodeRPC('PLUME', process.env.QUICKNODE_RPC_URL || ''),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -459,7 +465,7 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
     name: 'Starknet',
     vmType: VMType.STARKNET,
     chainId: 'SN_MAIN',
-    rpcUrl: process.env.STARKNET_RPC_URL || 'https://starknet-mainnet.public.blastapi.io',
+    rpcUrl: getQuickNodeRPC('STARKNET', process.env.QUICKNODE_RPC_URL || 'https://starknet-mainnet.public.blastapi.io'),
     tokenSupport: {
       supportsUSDC: true,
       supportsUSYC: false
@@ -475,6 +481,29 @@ export const MAINNET_CHAINS: Record<number, ChainMetadata> = {
       usdcToken: ''
     },
     blockTime: 30000
+  },
+
+  // Domain 26: Arc Testnet
+  26: {
+    domainId: 26,
+    name: 'Arc Testnet',
+    vmType: VMType.EVM,
+    chainId: 11155111, // Sepolia testnet chain ID (Arc runs on Sepolia)
+    rpcUrl: getQuickNodeRPC('ARC_TESTNET', process.env.QUICKNODE_RPC_URL || 'https://sepolia.arc.gelato.digital'),
+    tokenSupport: {
+      supportsUSDC: true,
+      supportsUSYC: false
+    },
+    capabilities: {
+      standardSource: true,
+      fastSource: false,
+      destination: true
+    },
+    contracts: {
+      ...COMMON_EVM_ADDRESSES,
+      usdcToken: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' // USDC on Sepolia
+    },
+    blockTime: 12000
   }
 };
 

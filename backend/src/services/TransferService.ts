@@ -117,7 +117,31 @@ export class TransferService {
       let transfer = this.transferCache.get(transferId) || await getTransferById(transferId);
       
       if (!transfer) {
-        logger.warn('MessageSent event received for unknown transfer', { transferId });
+        // MessageSent events can arrive for historical transfers not in our database
+        // This is expected when watchers catch up on historical blocks
+        // Try to fetch from Iris API to see if this is a valid transfer
+        logger.debug('MessageSent event received for unknown transfer, checking Iris', { transferId });
+        
+        try {
+          // Use transactionHash from MessageSent event, or nonce as fallback
+          const irisResponse = await this.irisClient.getMessage({
+            domain: event.domain,
+            transactionHash: event.txHash,
+            nonce: event.nonce
+          });
+          
+          if (irisResponse) {
+            // Transfer exists in Iris but not in our DB - likely a historical transfer
+            // We'll skip processing it since we don't have the burn event data
+            logger.debug('Transfer found in Iris but not in local database (likely historical)', { transferId });
+          } else {
+            // Not in Iris either - might be a very recent transfer or invalid
+            logger.debug('Transfer not found in Iris or local database', { transferId });
+          }
+        } catch (irisError) {
+          logger.debug('Could not verify transfer in Iris', { transferId, error: irisError });
+        }
+        
         return;
       }
 
@@ -229,8 +253,11 @@ export class TransferService {
    */
   private async checkIrisAttestation(transfer: Transfer): Promise<void> {
     try {
+      // Use transactionHash if available (from burn event), otherwise use nonce
+      // Both are valid according to Iris API - transactionHash can be faster
       const irisResponse = await this.irisClient.getMessage({
         domain: transfer.sourceDomain,
+        transactionHash: transfer.burnTxHash,
         nonce: transfer.nonce
       });
 

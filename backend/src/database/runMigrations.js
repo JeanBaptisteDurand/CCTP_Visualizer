@@ -1,13 +1,19 @@
 /**
- * Run database migrations
+ * Run database migrations (compiled JS version)
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { pool } from '../config/database';
-import { createLogger } from '../utils/logger';
+const { readFileSync } = require('fs');
+const { join } = require('path');
+const { Pool } = require('pg');
 
-const logger = createLogger('Migrations');
+const logger = {
+  info: (msg, ...args) => console.log(`[INFO] ${msg}`, ...args),
+  error: (msg, ...args) => console.error(`[ERROR] ${msg}`, ...args)
+};
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
 
 async function runMigrations() {
   try {
@@ -19,9 +25,11 @@ async function runMigrations() {
     await pool.query(sql);
     
     logger.info('Migrations completed successfully');
+    await pool.end();
     process.exit(0);
   } catch (error) {
     logger.error('Migration failed', error);
+    await pool.end();
     process.exit(1);
   }
 }

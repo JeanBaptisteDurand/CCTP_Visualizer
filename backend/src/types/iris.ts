@@ -5,7 +5,8 @@
 export interface IrisMessageResponse {
   status: 'pending' | 'complete' | 'failed';
   attestation?: string; // Hex string
-  message?: {
+  message?: string; // Raw message hex string
+  decodedMessage?: {
     messageBody: string;
     nonce: string;
     sourceDomain: number;

@@ -92,7 +92,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to auto-update updated_at
+-- Trigger to auto-update updated_at (drop first to make idempotent)
+DROP TRIGGER IF EXISTS update_cctp_transfers_updated_at ON cctp_transfers;
 CREATE TRIGGER update_cctp_transfers_updated_at
     BEFORE UPDATE ON cctp_transfers
     FOR EACH ROW

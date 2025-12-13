@@ -2,6 +2,7 @@
   "name": "cctp-visualizer-frontend",
   "version": "1.0.0",
   "type": "module",
+  "packageManager": "pnpm@8.15.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -31,4 +32,3 @@
     "vite": "^5.0.8"
   }
 }
-

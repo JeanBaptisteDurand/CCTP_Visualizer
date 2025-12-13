@@ -1,12 +1,11 @@
 /**
- * API client for backend REST endpoints
+ * API client for backend REST endpoints - Simplified
  */
 
 import axios, { AxiosInstance } from 'axios';
-import { AggregatedMetrics, TimeSeriesPoint, RouteMetrics, ChainMetrics, Anomaly, MetricsPeriod } from '../types/metrics';
-import { Transfer } from '../types/transfer';
+import { ChainMinuteMetrics } from '../types/metrics';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -18,57 +17,15 @@ class ApiClient {
     });
   }
 
-  // Metrics endpoints
-
-  async getMetrics(period: MetricsPeriod = MetricsPeriod.LAST_24H): Promise<AggregatedMetrics> {
-    const response = await this.client.get('/metrics', {
-      params: { period }
-    });
-    return response.data;
-  }
-
-  async getTimeSeries(period: MetricsPeriod = MetricsPeriod.LAST_24H): Promise<TimeSeriesPoint[]> {
-    const response = await this.client.get('/metrics/timeseries', {
-      params: { period }
-    });
-    return response.data;
-  }
-
-  async getRouteMetrics(period: MetricsPeriod = MetricsPeriod.LAST_24H): Promise<RouteMetrics[]> {
-    const response = await this.client.get('/metrics/routes', {
-      params: { period }
-    });
-    return response.data;
-  }
-
-  async getChainMetrics(period: MetricsPeriod = MetricsPeriod.LAST_24H): Promise<ChainMetrics[]> {
-    const response = await this.client.get('/metrics/chains', {
-      params: { period }
-    });
-    return response.data;
-  }
-
-  async getAnomalies(thresholdMinutes: number = 30): Promise<Anomaly[]> {
-    const response = await this.client.get('/metrics/anomalies', {
-      params: { threshold: thresholdMinutes }
-    });
-    return response.data;
-  }
-
-  async getActiveTransfers(): Promise<Transfer[]> {
-    const response = await this.client.get('/metrics/active');
+  // Get per-chain metrics for last minute
+  async getChainMinuteMetrics(): Promise<ChainMinuteMetrics[]> {
+    const response = await this.client.get('/metrics/chains/minute');
     return response.data;
   }
 
   // Health endpoint
-
   async getHealth(): Promise<any> {
     const response = await this.client.get('/health');
-    return response.data;
-  }
-
-  async getDetailedStatus(): Promise<any> {
-    const response = await this.client.get('/health/status');
     return response.data;
   }
 }
