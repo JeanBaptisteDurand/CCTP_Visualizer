@@ -188,10 +188,14 @@ export class CCTPScheduler {
         fromBlock = lastBlock + 1n;
       }
 
-      // Limit the range
+      // Calculate how many blocks we're behind
+      const blocksBehind = safeBlock - fromBlock;
+
+      // Limit the range to MAX_BLOCKS_PER_CYCLE (500 blocks max)
       let toBlock = safeBlock;
-      if (toBlock - fromBlock > MAX_BLOCKS_PER_CYCLE) {
+      if (blocksBehind > MAX_BLOCKS_PER_CYCLE) {
         toBlock = fromBlock + MAX_BLOCKS_PER_CYCLE;
+        logger.info(`${chainName}: Behind by ${blocksBehind} blocks, limiting to ${MAX_BLOCKS_PER_CYCLE} blocks this cycle`);
       }
 
       const blocksToProcess = Number(toBlock - fromBlock + 1n);

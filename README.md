@@ -32,6 +32,18 @@ fix unknow in incomming volume breakdown
 
 clean up file / useless code (iris)
 
+afficher la derniere par rapport a lheure actuelle -3min (le temps dun cycle)
+
+check cctp et pas ccpt
+
+readme
+
+agent ia pour la selection plage horaire
+
+favicon, robot txt, ect...
+
+nb de transaction
+
 
 ////////
 pour readme de fin
@@ -40,3 +52,5 @@ comment on peut ameliorer en link burn mint
 mieux check les donnes sur chaque smart contract pour detecter les incoherence (liste les events des autres contracts)
 faire du temps reel avec un meilleur provideur
 ce qui permettrait de track la latence iris
+
+Check les horaires et divergence de volume pile au open des bourse etc
