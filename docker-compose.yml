@@ -61,9 +61,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
     container_name: cctp_frontend
-    environment:
-      VITE_API_URL: ""
     expose:
       - "80"
     depends_on:
