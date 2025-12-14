@@ -30,7 +30,6 @@ selectionner la plage que lon veux
 opti le fetch
 fix unknow in incomming volume breakdown
 
-probleme du M apres les amount
 clean up file / useless code (iris)
 
 

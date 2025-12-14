@@ -36,10 +36,10 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
       .map(item => type === 'outgoing' ? item.destinationDomain : item.sourceDomain)
       .filter((domain): domain is number => domain !== undefined)
       .sort((a, b) => {
-        const volA = parseFloat(breakdown.find(item => 
+        const volA = parseFloat(breakdown.find(item =>
           (type === 'outgoing' ? item.destinationDomain : item.sourceDomain) === a
         )?.volume || '0');
-        const volB = parseFloat(breakdown.find(item => 
+        const volB = parseFloat(breakdown.find(item =>
           (type === 'outgoing' ? item.destinationDomain : item.sourceDomain) === b
         )?.volume || '0');
         return volB - volA; // Sort by volume descending
@@ -71,15 +71,15 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
     <div style={{
       background: '#1e293b',
       padding: '16px',
-      paddingBottom: '40px',
+      paddingBottom: '60px',
       borderRadius: '8px',
       border: '1px solid #334155',
       height: '250px',
       marginBottom: '16px'
     }}>
-      <h4 style={{ 
-        fontSize: '14px', 
-        marginBottom: '12px', 
+      <h4 style={{
+        fontSize: '14px',
+        marginBottom: '12px',
         fontWeight: '500',
         color: baseColor
       }}>
@@ -88,19 +88,19 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-          <XAxis 
-            dataKey="time" 
+          <XAxis
+            dataKey="time"
             stroke="#94a3b8"
             style={{ fontSize: '11px' }}
             tick={{ fill: '#64748b' }}
           />
-          <YAxis 
+          <YAxis
             stroke="#94a3b8"
             style={{ fontSize: '11px' }}
             tick={{ fill: '#64748b' }}
             tickFormatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           />
-          <Tooltip 
+          <Tooltip
             contentStyle={{
               background: '#0f172a',
               border: '1px solid #334155',
@@ -119,7 +119,7 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
             }}
             labelStyle={{ color: '#94a3b8' }}
           />
-          <Legend 
+          <Legend
             wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
             formatter={(value: string) => {
               if (value === 'total') return 'Total';
@@ -128,10 +128,10 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
             }}
           />
           {/* Total line */}
-          <Line 
-            type="monotone" 
-            dataKey="total" 
-            stroke={baseColor} 
+          <Line
+            type="monotone"
+            dataKey="total"
+            stroke={baseColor}
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, fill: baseColor }}
