@@ -5,7 +5,9 @@
 import axios, { AxiosInstance } from 'axios';
 import { ChainMinuteMetrics } from '../types/metrics';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
+// Handle VITE_API_URL: empty string = relative URLs, undefined = localhost (dev), otherwise use provided URL
+const apiUrl = (import.meta as any).env?.VITE_API_URL;
+const API_BASE_URL = apiUrl !== undefined ? apiUrl : 'http://localhost:3001';
 
 export type Period = '1min' | '5min' | '15min' | '1h' | '4h' | '24h';
 
@@ -57,11 +59,11 @@ class ApiClient {
 
   // Get chain volume chart data (outgoing or incoming) with breakdown by chain
   async getChainVolumeChart(
-    domain: number, 
-    period: Period = '24h', 
+    domain: number,
+    period: Period = '24h',
     type: 'outgoing' | 'incoming' = 'outgoing',
     buckets: number = 20
-  ): Promise<Array<{ time: string; total: string; [key: string]: string }>> {
+  ): Promise<Array<{ time: string; total: string;[key: string]: string }>> {
     const response = await this.client.get(`/metrics/chain/${domain}/chart?period=${period}&type=${type}&buckets=${buckets}`);
     return response.data;
   }

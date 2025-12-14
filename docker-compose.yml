@@ -63,7 +63,7 @@ services:
       dockerfile: Dockerfile
     container_name: cctp_frontend
     environment:
-      VITE_API_URL: https://ccpt-visualizer.tech
+      VITE_API_URL: ""
     expose:
       - "80"
     depends_on:
