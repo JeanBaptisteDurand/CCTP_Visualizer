@@ -12,9 +12,9 @@ interface VolumeChartProps {
 const VolumeChart: React.FC<VolumeChartProps> = ({ data }) => {
   const chartData = data.map(point => ({
     time: new Date(point.time).toLocaleTimeString(),
-    in: parseFloat(point.in) / 1e6,
-    out: parseFloat(point.out) / 1e6,
-    total: parseFloat(point.total) / 1e6,
+    in: parseFloat(point.in) / 1e6, // Convert micro-USDC to dollars
+    out: parseFloat(point.out) / 1e6, // Convert micro-USDC to dollars
+    total: parseFloat(point.total) / 1e6, // Convert micro-USDC to dollars
   }));
 
   return (
@@ -31,46 +31,46 @@ const VolumeChart: React.FC<VolumeChartProps> = ({ data }) => {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-          <XAxis 
-            dataKey="time" 
+          <XAxis
+            dataKey="time"
             stroke="#94a3b8"
             style={{ fontSize: '12px' }}
           />
-          <YAxis 
+          <YAxis
             stroke="#94a3b8"
             style={{ fontSize: '12px' }}
-            tickFormatter={(value) => `$${value.toFixed(0)}M`}
+            tickFormatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           />
-          <Tooltip 
+          <Tooltip
             contentStyle={{
               background: '#0f172a',
               border: '1px solid #334155',
               borderRadius: '6px',
               color: '#fff'
             }}
-            formatter={(value: number) => [`$${value.toFixed(2)}M`, '']}
+            formatter={(value: number) => [`$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '']}
           />
           <Legend />
-          <Line 
-            type="monotone" 
-            dataKey="in" 
-            stroke="#10b981" 
+          <Line
+            type="monotone"
+            dataKey="in"
+            stroke="#10b981"
             strokeWidth={2}
             name="Incoming"
             dot={false}
           />
-          <Line 
-            type="monotone" 
-            dataKey="out" 
-            stroke="#3b82f6" 
+          <Line
+            type="monotone"
+            dataKey="out"
+            stroke="#3b82f6"
             strokeWidth={2}
             name="Outgoing"
             dot={false}
           />
-          <Line 
-            type="monotone" 
-            dataKey="total" 
-            stroke="#f59e0b" 
+          <Line
+            type="monotone"
+            dataKey="total"
+            stroke="#f59e0b"
             strokeWidth={2}
             name="Total"
             dot={false}

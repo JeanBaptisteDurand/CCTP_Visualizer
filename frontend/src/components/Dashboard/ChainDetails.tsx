@@ -82,7 +82,7 @@ const ChainDetails: React.FC = () => {
                     {chainName} - Outgoing Volume
                 </h1>
                 <p style={{ fontSize: '14px', color: '#94a3b8', marginTop: '8px' }}>
-                    Total outgoing: ${(totalVolume / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC
+                    Total outgoing: ${totalVolume.toLocaleString(undefined, { maximumFractionDigits: 2, notation: 'standard' })} USDC
                 </p>
             </div>
 
@@ -121,7 +121,7 @@ const ChainDetails: React.FC = () => {
                                                 {CHAIN_NAMES[item.destinationDomain] || `Chain ${item.destinationDomain}`}
                                             </td>
                                             <td style={{ padding: '12px', textAlign: 'right', color: '#3b82f6' }}>
-                                                ${(volume / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                                ${volume.toLocaleString(undefined, { maximumFractionDigits: 2, notation: 'standard' })}
                                             </td>
                                             <td style={{ padding: '12px', textAlign: 'right', color: '#94a3b8' }}>
                                                 {percentage.toFixed(2)}%

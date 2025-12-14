@@ -21,6 +21,7 @@ sei trop rapide pour le provider actuel
 
 total working : 13 chains
 
+////////
 
 
 verif les pendants burn
@@ -29,9 +30,11 @@ selectionner la plage que lon veux
 opti le fetch
 fix unknow in incomming volume breakdown
 
+probleme du M apres les amount
+clean up file / useless code (iris)
 
 
-
+////////
 pour readme de fin
 
 comment on peut ameliorer en link burn mint

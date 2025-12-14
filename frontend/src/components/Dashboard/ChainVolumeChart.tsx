@@ -7,7 +7,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { getChainName } from '../../utils/chainNames';
 
 interface ChainVolumeChartProps {
-  data: Array<{ time: string; total: string; [key: string]: string }>;
+  data: Array<{ time: string; total: string;[key: string]: string }>;
   type: 'outgoing' | 'incoming';
   breakdown: Array<{ destinationDomain?: number; sourceDomain?: number; volume: string }>;
 }
@@ -36,10 +36,10 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
       .map(item => type === 'outgoing' ? item.destinationDomain : item.sourceDomain)
       .filter((domain): domain is number => domain !== undefined)
       .sort((a, b) => {
-        const volA = parseFloat(breakdown.find(item => 
+        const volA = parseFloat(breakdown.find(item =>
           (type === 'outgoing' ? item.destinationDomain : item.sourceDomain) === a
         )?.volume || '0');
-        const volB = parseFloat(breakdown.find(item => 
+        const volB = parseFloat(breakdown.find(item =>
           (type === 'outgoing' ? item.destinationDomain : item.sourceDomain) === b
         )?.volume || '0');
         return volB - volA; // Sort by volume descending
@@ -49,15 +49,15 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
   // Transform data for chart
   const chartData = useMemo(() => {
     return data.map(point => {
-      const transformed: { time: string; total: number; [key: string]: number | string } = {
+      const transformed: { time: string; total: number;[key: string]: number | string } = {
         time: new Date(point.time).toLocaleTimeString(),
-        total: parseFloat(point.total) / 1e6,
+        total: parseFloat(point.total) / 1e6, // Convert micro-USDC to dollars
       };
 
       // Add each chain's volume
       chainDomains.forEach(domain => {
         const key = `chain_${domain}`;
-        transformed[key] = parseFloat(point[key] || '0') / 1e6;
+        transformed[key] = parseFloat(point[key] || '0') / 1e6; // Convert micro-USDC to dollars
       });
 
       return transformed;
@@ -76,9 +76,9 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
       height: '250px',
       marginBottom: '16px'
     }}>
-      <h4 style={{ 
-        fontSize: '14px', 
-        marginBottom: '12px', 
+      <h4 style={{
+        fontSize: '14px',
+        marginBottom: '12px',
         fontWeight: '500',
         color: baseColor
       }}>
@@ -87,19 +87,19 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-          <XAxis 
-            dataKey="time" 
+          <XAxis
+            dataKey="time"
             stroke="#94a3b8"
             style={{ fontSize: '11px' }}
             tick={{ fill: '#64748b' }}
           />
-          <YAxis 
+          <YAxis
             stroke="#94a3b8"
             style={{ fontSize: '11px' }}
             tick={{ fill: '#64748b' }}
-            tickFormatter={(value) => `$${value.toFixed(0)}M`}
+            tickFormatter={(value) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           />
-          <Tooltip 
+          <Tooltip
             contentStyle={{
               background: '#0f172a',
               border: '1px solid #334155',
@@ -108,16 +108,17 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
               fontSize: '12px'
             }}
             formatter={(value: number, name: string) => {
+              const formatted = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               if (name === 'total') {
-                return [`$${value.toFixed(2)}M`, 'Total'];
+                return [`$${formatted}`, 'Total'];
               }
               const domain = parseInt(name.replace('chain_', ''));
               const chainName = getChainName(domain);
-              return [`$${value.toFixed(2)}M`, chainName];
+              return [`$${formatted}`, chainName];
             }}
             labelStyle={{ color: '#94a3b8' }}
           />
-          <Legend 
+          <Legend
             wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }}
             formatter={(value: string) => {
               if (value === 'total') return 'Total';
@@ -126,10 +127,10 @@ const ChainVolumeChart: React.FC<ChainVolumeChartProps> = ({ data, type, breakdo
             }}
           />
           {/* Total line */}
-          <Line 
-            type="monotone" 
-            dataKey="total" 
-            stroke={baseColor} 
+          <Line
+            type="monotone"
+            dataKey="total"
+            stroke={baseColor}
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 4, fill: baseColor }}

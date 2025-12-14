@@ -5,8 +5,11 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient, Period } from '../../services/api';
 import { ChainMinuteMetrics } from '../../types/metrics';
+import { formatCurrency } from '../../utils/formatCurrency';
 import PeriodSelector from '../shared/PeriodSelector';
+import SchedulerControl from '../shared/SchedulerControl';
 import VolumeChart from './VolumeChart';
+import VolumeGraph from './VolumeGraph';
 import ChainRow from './ChainRow';
 
 const PERIOD_LABELS: Record<Period, string> = {
@@ -81,10 +84,15 @@ const Dashboard: React.FC = () => {
     <div style={{ padding: '20px', background: '#0f172a', minHeight: '100vh', color: 'white' }}>
       {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>CCTP Network Explorer</h1>
-        <p style={{ fontSize: '14px', color: '#94a3b8', marginTop: '8px', marginBottom: '16px' }}>
-          Cross-Chain Transfer Protocol metrics across 13 EVM chains
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+          <div>
+            <h1 style={{ fontSize: '28px', fontWeight: 'bold', margin: 0 }}>CCTP Network Explorer</h1>
+            <p style={{ fontSize: '14px', color: '#94a3b8', marginTop: '8px', marginBottom: '16px' }}>
+              Cross-Chain Transfer Protocol metrics across 13 EVM chains
+            </p>
+          </div>
+          <SchedulerControl />
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <PeriodSelector selected={period} onChange={setPeriod} />
           <span style={{ fontSize: '13px', color: '#64748b', fontStyle: 'italic' }}>
@@ -108,19 +116,19 @@ const Dashboard: React.FC = () => {
           <div>
             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Total Volume</div>
             <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#f59e0b' }}>
-              ${(parseFloat(totalVolume.total) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}M
+              ${formatCurrency(totalVolume.total)}
             </div>
           </div>
           <div>
             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Total Incoming</div>
             <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>
-              ${(parseFloat(totalVolume.in) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}M
+              ${formatCurrency(totalVolume.in)}
             </div>
           </div>
           <div>
             <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Total Outgoing</div>
             <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>
-              ${(parseFloat(totalVolume.out) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}M
+              ${formatCurrency(totalVolume.out)}
             </div>
           </div>
         </div>
@@ -132,6 +140,11 @@ const Dashboard: React.FC = () => {
           <VolumeChart data={chartData} />
         </div>
       )}
+
+      {/* Volume Graph */}
+      <div style={{ marginBottom: '24px' }}>
+        <VolumeGraph period={period} />
+      </div>
 
       {/* Chain Metrics Table */}
       <div style={{

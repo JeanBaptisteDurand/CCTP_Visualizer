@@ -41,7 +41,7 @@ const SUPPORTED_DOMAINS = [0, 1, 2, 3, 6, 7, 10, 11, 13, 14, 15, 19, 21];
 export class CCTPScheduler {
   private indexers: Map<number, EVMIndexer> = new Map();
   private interval: NodeJS.Timeout | null = null;
-  private isRunning: boolean = false;
+  public isRunning: boolean = false;
   private isCycleRunning: boolean = false;
   private currentChainIndex: number = 0;
 

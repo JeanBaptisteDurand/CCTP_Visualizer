@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient, Period } from '../../services/api';
 import { getChainName } from '../../utils/chainNames';
+import { formatCurrency } from '../../utils/formatCurrency';
 import ChainVolumeChart from './ChainVolumeChart';
 
 type BreakdownType = 'outgoing' | 'incoming';
@@ -78,8 +79,8 @@ const ChainRow: React.FC<ChainRowProps> = ({ chain, period, isExpanded, onToggle
     }
   };
 
-  const totalOutgoing = outgoing.reduce((sum, item) => sum + parseFloat(item.volume), 0);
-  const totalIncoming = incoming.reduce((sum, item) => sum + parseFloat(item.volume), 0);
+  const totalOutgoing = outgoing.reduce((sum, item) => sum + parseFloat(item.volume), 0) / 1e6; // Convert to dollars
+  const totalIncoming = incoming.reduce((sum, item) => sum + parseFloat(item.volume), 0) / 1e6; // Convert to dollars
   const currentData: Array<{ volume: string;[key: string]: number | string }> = breakdownType === 'outgoing' ? outgoing : incoming;
   const currentTotal = breakdownType === 'outgoing' ? totalOutgoing : totalIncoming;
 
@@ -109,13 +110,13 @@ const ChainRow: React.FC<ChainRowProps> = ({ chain, period, isExpanded, onToggle
           {chain.name}
         </td>
         <td style={{ padding: '12px', textAlign: 'right', color: '#10b981' }}>
-          ${(parseFloat(chain.incomingUSDC) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          ${formatCurrency(chain.incomingUSDC)}
         </td>
         <td style={{ padding: '12px', textAlign: 'right', color: '#3b82f6' }}>
-          ${(parseFloat(chain.outgoingUSDC) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          ${formatCurrency(chain.outgoingUSDC)}
         </td>
         <td style={{ padding: '12px', textAlign: 'right', fontWeight: '500' }}>
-          ${(chain.chainTotal / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          ${formatCurrency(chain.chainTotal)}
         </td>
         <td style={{ padding: '12px', textAlign: 'right', color: '#94a3b8' }}>
           {chain.percentage.toFixed(2)}%
@@ -183,7 +184,7 @@ const ChainRow: React.FC<ChainRowProps> = ({ chain, period, isExpanded, onToggle
                     <strong style={{ color: '#64748b' }}>Period:</strong> {periodLabel}
                   </span>
                   <span>
-                    <strong style={{ color: '#64748b' }}>Total:</strong> <span style={{ color: breakdownType === 'outgoing' ? '#3b82f6' : '#10b981', fontWeight: '500' }}>${(currentTotal / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC</span>
+                    <strong style={{ color: '#64748b' }}>Total:</strong> <span style={{ color: breakdownType === 'outgoing' ? '#3b82f6' : '#10b981', fontWeight: '500' }}>${currentTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC</span>
                   </span>
                   <span>
                     <strong style={{ color: '#64748b' }}>{breakdownType === 'outgoing' ? 'Destinations' : 'Sources'}:</strong> {currentData.length} chain{currentData.length !== 1 ? 's' : ''}
@@ -229,8 +230,8 @@ const ChainRow: React.FC<ChainRowProps> = ({ chain, period, isExpanded, onToggle
                       {[...currentData]
                         .sort((a, b) => parseFloat(b.volume) - parseFloat(a.volume))
                         .map((item, index) => {
-                          const volume = parseFloat(item.volume);
-                          const percentage = currentTotal > 0 ? (volume / currentTotal * 100) : 0;
+                          const volumeInDollars = parseFloat(item.volume) / 1e6; // Convert micro-USDC to dollars
+                          const percentage = currentTotal > 0 ? (volumeInDollars / currentTotal * 100) : 0;
                           let domain: number;
                           if (breakdownType === 'outgoing') {
                             domain = (item as { destinationDomain: number; volume: string }).destinationDomain;
@@ -249,7 +250,7 @@ const ChainRow: React.FC<ChainRowProps> = ({ chain, period, isExpanded, onToggle
                                 </div>
                               </td>
                               <td style={{ padding: '10px', textAlign: 'right', color: breakdownType === 'outgoing' ? '#3b82f6' : '#10b981', fontSize: '13px', fontWeight: '500' }}>
-                                ${(volume / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                ${volumeInDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                               <td style={{ padding: '10px', textAlign: 'right', color: '#94a3b8', fontSize: '13px' }}>
                                 {percentage.toFixed(2)}%

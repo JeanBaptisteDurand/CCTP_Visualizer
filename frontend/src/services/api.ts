@@ -71,6 +71,22 @@ class ApiClient {
     const response = await this.client.get('/health');
     return response.data;
   }
+
+  // Scheduler control
+  async getSchedulerStatus(): Promise<{ running: boolean }> {
+    const response = await this.client.get('/scheduler/status');
+    return response.data;
+  }
+
+  async startScheduler(): Promise<{ message: string; running: boolean }> {
+    const response = await this.client.post('/scheduler/start');
+    return response.data;
+  }
+
+  async stopScheduler(): Promise<{ message: string; running: boolean }> {
+    const response = await this.client.post('/scheduler/stop');
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

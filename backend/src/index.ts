@@ -13,6 +13,7 @@ dotenv.config();
 import { testConnection, closePool } from './config/database';
 import metricsRoutes from './routes/metrics';
 import healthRoutes from './routes/health';
+import schedulerRoutes, { setSchedulerInstance } from './routes/scheduler';
 import { createLogger } from './utils/logger';
 import { CCTPScheduler } from './services/CCTPScheduler';
 
@@ -40,6 +41,14 @@ async function main() {
   // Routes
   app.use('/api/metrics', metricsRoutes);
   app.use('/api/health', healthRoutes);
+  
+  // Start CCTP Scheduler (14 EVM mainnet chains, polls every 5 seconds)
+  const scheduler = new CCTPScheduler();
+  
+  // Expose scheduler to routes
+  setSchedulerInstance(scheduler);
+  
+  app.use('/api/scheduler', schedulerRoutes);
 
   // Root endpoint
   app.get('/', (req, res) => {
@@ -55,8 +64,7 @@ async function main() {
     logger.info(`Server listening on port ${PORT}`);
   });
 
-  // Start CCTP Scheduler (14 EVM mainnet chains, polls every 5 seconds)
-  const scheduler = new CCTPScheduler();
+  // Start CCTP Scheduler automatically on startup
   await scheduler.start();
   logger.info('CCTP Scheduler started (14 EVM chains, QuickNode free tier compatible)');
 
