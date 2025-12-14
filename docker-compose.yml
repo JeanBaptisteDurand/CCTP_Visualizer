@@ -46,13 +46,14 @@ services:
       RPC_SEI: ${RPC_SEI:-}
       RPC_HYPEREVM: ${RPC_HYPEREVM:-}
       RPC_INK: ${RPC_INK:-}
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - cctp_network
+      - proxy
     restart: unless-stopped
 
   # Frontend
@@ -62,13 +63,14 @@ services:
       dockerfile: Dockerfile
     container_name: cctp_frontend
     environment:
-      VITE_API_URL: http://localhost:3001
-    ports:
-      - "5173:80"
+      VITE_API_URL: https://ccpt-visualizer.tech
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
       - cctp_network
+      - proxy
     restart: unless-stopped
 
 volumes:
@@ -78,3 +80,5 @@ volumes:
 networks:
   cctp_network:
     driver: bridge
+  proxy:
+    external: true
