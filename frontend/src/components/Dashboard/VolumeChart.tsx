@@ -21,6 +21,7 @@ const VolumeChart: React.FC<VolumeChartProps> = ({ data }) => {
     <div style={{
       background: '#1e293b',
       padding: '20px',
+      paddingBottom: '60px',
       borderRadius: '8px',
       border: '1px solid #334155',
       height: '300px'

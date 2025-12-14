@@ -107,6 +107,7 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<ReactECharts>(null);
   const linksRef = useRef<GraphLink[]>([]);
+  const nodesRef = useRef<any[]>([]);
 
   useEffect(() => {
     loadGraphData();
@@ -217,27 +218,33 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
       }
 
       // Convert to dollars and prepare for visualMap
-      const scaledNodes = nodes.map((node) => {
-        const rawValue = typeof node.value === 'number' ? node.value : node.value[0];
-        const valueInDollars = rawValue / 1e6;
+      // Filter out nodes with 0 volume
+      const scaledNodes = nodes
+        .map((node) => {
+          const rawValue = typeof node.value === 'number' ? node.value : node.value[0];
+          const valueInDollars = rawValue / 1e6;
 
-        const { symbolSize, ...nodeWithoutSize } = node;
-        return {
-          ...nodeWithoutSize,
-          value: [valueInDollars],
-          rawValue,
-        };
-      });
+          const { symbolSize, ...nodeWithoutSize } = node;
+          return {
+            ...nodeWithoutSize,
+            value: [valueInDollars],
+            rawValue,
+          };
+        })
+        .filter((node) => node.value[0] > 0); // Filter out nodes with 0 volume
+
+      // Filter out links with 0 volume
+      const filteredLinks = links.filter((link) => link.value > 0);
 
       const maxValue = Math.max(...scaledNodes.map(n => n.value[0]), 1);
 
       // Calculate max link volume and scale link widths proportionally
-      const maxLinkVolume = Math.max(...links.map(l => l.value), 1);
+      const maxLinkVolume = Math.max(...filteredLinks.map(l => l.value), 1);
       const minLinkWidth = 1;
       const maxLinkWidth = 12;
 
       // Scale link widths proportionally based on volume (same scaling as nodes)
-      links.forEach((link) => {
+      filteredLinks.forEach((link) => {
         const volumeInDollars = link.value / 1e6;
         const maxLinkVolumeInDollars = maxLinkVolume / 1e6;
         const volumeRatio = maxLinkVolumeInDollars > 0 ? volumeInDollars / maxLinkVolumeInDollars : 0;
@@ -247,13 +254,24 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
         };
       });
 
-      // Position nodes (larger nodes closer to center)
-      scaledNodes.forEach((node, index) => {
-        const volumeRatio = node.value[0] / maxValue;
-        const distanceFromCenter = (1 - volumeRatio) * 200;
-        const angle = (index / scaledNodes.length) * Math.PI * 2;
-        node.x = Math.cos(angle) * distanceFromCenter;
-        node.y = Math.sin(angle) * distanceFromCenter;
+      // Position nodes (larger nodes closer to center, smaller nodes at the edges)
+      // Sort nodes by volume to position largest at center
+      const sortedNodes = scaledNodes.map((node) => ({
+        node,
+        volume: Array.isArray(node.value) ? node.value[0] : node.value,
+      })).sort((a, b) => b.volume - a.volume);
+
+      sortedNodes.forEach(({ node, volume }, sortedIndex) => {
+        const volumeRatio = volume / maxValue;
+        // Larger nodes (higher volumeRatio) are closer to center
+        // Distance from center: 0 (center) to 800 (edge) for width, 0 to 600 for height
+        // Increased distances for more spacing
+        const distanceFromCenterX = (1 - volumeRatio) * 800; // Wider spacing on horizontal axis
+        const distanceFromCenterY = (1 - volumeRatio) * 600;
+        // Distribute nodes evenly around the circle, but largest ones are closer to center
+        const angle = (sortedIndex / sortedNodes.length) * Math.PI * 2;
+        node.x = Math.cos(angle) * distanceFromCenterX;
+        node.y = Math.sin(angle) * distanceFromCenterY;
       });
 
       const nodesMapForTooltip = new Map<string, any>();
@@ -261,8 +279,9 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
         nodesMapForTooltip.set(node.id, node);
       });
 
-      // Store links in ref for event handlers
-      linksRef.current = links;
+      // Store links and nodes in ref for event handlers
+      linksRef.current = filteredLinks;
+      nodesRef.current = scaledNodes;
 
       setOption({
         visualMap: {
@@ -278,7 +297,7 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
         title: {
           text: 'CCTP Network Volume Graph',
           subtext: `Volume flows between chains (${period})`,
-          top: 'top',
+          top: 10,
           left: 'center',
           textStyle: {
             color: '#fff',
@@ -324,15 +343,6 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
             color: '#fff',
           },
         },
-        legend: [
-          {
-            data: ['Chains'],
-            selectedMode: false,
-            textStyle: {
-              color: '#94a3b8',
-            },
-          },
-        ],
         animationDuration: 1500,
         animationEasingUpdate: 'quinticInOut',
         series: [
@@ -340,8 +350,12 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
             name: 'CCTP Network',
             type: 'graph',
             layout: 'force',
-            data: scaledNodes,
-            links: links,
+            data: scaledNodes.map(node => ({
+              ...node,
+              // Ensure each node has a name for legend
+              name: node.name,
+            })),
+            links: filteredLinks,
             categories: [{ name: 'Chains' }],
             roam: true,
             label: {
@@ -377,11 +391,12 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
               },
             },
             force: {
-              repulsion: 300,
-              gravity: 0.2,
-              edgeLength: 150,
+              repulsion: 1500, // Much higher repulsion for more spacing between nodes
+              gravity: 0.01, // Very low gravity to allow maximum spread
+              edgeLength: 500, // Much longer edge length for wider spacing
               layoutAnimation: true,
               initLayout: 'circular',
+              friction: 0.6, // Lower friction for smoother movement
             },
           },
         ],
@@ -477,6 +492,7 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
     <div style={{
       background: '#1e293b',
       padding: '20px',
+      paddingBottom: '80px',
       borderRadius: '8px',
       border: '1px solid #334155',
       width: '100%',
@@ -484,7 +500,7 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
       <h3 style={{ fontSize: '16px', marginBottom: '16px', fontWeight: 'bold', color: '#fff' }}>
         Network Volume Graph
       </h3>
-      <div style={{ height: '600px', width: '100%' }}>
+      <div style={{ height: '700px', width: '100%' }}>
         <ReactECharts
           ref={chartRef}
           key={`${period}-${option?.series?.[0]?.data?.length || 0}-${option?.series?.[0]?.links?.length || 0}`}
@@ -537,9 +553,199 @@ const VolumeGraph: React.FC<VolumeGraphProps> = ({ period }) => {
                 });
               }
             },
+            legendselectchanged: () => {
+              // Prevent legend selection from hiding nodes
+              if (chartRef.current) {
+                const chart = chartRef.current.getEchartsInstance();
+                // Re-select all nodes to prevent hiding
+                chart.dispatchAction({
+                  type: 'legendSelect',
+                  selected: nodesRef.current.reduce((acc: any, node: any) => {
+                    acc[node.name] = true;
+                    return acc;
+                  }, {}),
+                });
+              }
+            },
+          }}
+          onChartReady={() => {
+            // Add hover events to legend items after chart is ready
+            if (chartRef.current) {
+              const echartsInstance = chartRef.current.getEchartsInstance();
+              const zr = echartsInstance.getZr();
+
+              // Use setTimeout to ensure legend is rendered
+              setTimeout(() => {
+                zr.on('mouseover', (e: any) => {
+                  const target = e.target;
+                  // Check if hovering over legend item (text or icon)
+                  if (target && target.style) {
+                    let nodeName: string | null = null;
+
+                    // Try to get node name from text
+                    if (target.style.text) {
+                      nodeName = target.style.text;
+                    } else if (target.parent && target.parent.style && target.parent.style.text) {
+                      nodeName = target.parent.style.text;
+                    }
+
+                    if (nodeName) {
+                      const node = nodesRef.current.find((n: any) => n.name === nodeName);
+                      if (node && chartRef.current) {
+                        const chartInstance = chartRef.current.getEchartsInstance();
+                        const nodeId = node.id;
+
+                        // Find all outgoing links from this node
+                        linksRef.current.forEach((link: GraphLink, index: number) => {
+                          if (link.source === nodeId) {
+                            chartInstance.dispatchAction({
+                              type: 'highlight',
+                              seriesIndex: 0,
+                              dataIndex: index,
+                              dataType: 'edge',
+                            });
+                          } else {
+                            chartInstance.dispatchAction({
+                              type: 'downplay',
+                              seriesIndex: 0,
+                              dataIndex: index,
+                              dataType: 'edge',
+                            });
+                          }
+                        });
+
+                        // Also highlight the node
+                        const nodeIndex = nodesRef.current.findIndex((n: any) => n.id === nodeId);
+                        if (nodeIndex >= 0) {
+                          chartInstance.dispatchAction({
+                            type: 'highlight',
+                            seriesIndex: 0,
+                            dataIndex: nodeIndex,
+                            dataType: 'node',
+                          });
+                        }
+                      }
+                    }
+                  }
+                });
+
+                zr.on('mouseout', (e: any) => {
+                  const target = e.target;
+                  if (target && target.style && chartRef.current) {
+                    const chartInstance = chartRef.current.getEchartsInstance();
+                    // Reset all links to normal state
+                    linksRef.current.forEach((_link: GraphLink, index: number) => {
+                      chartInstance.dispatchAction({
+                        type: 'downplay',
+                        seriesIndex: 0,
+                        dataIndex: index,
+                        dataType: 'edge',
+                      });
+                    });
+                    // Reset all nodes
+                    chartInstance.dispatchAction({
+                      type: 'downplay',
+                      seriesIndex: 0,
+                    });
+                  }
+                });
+              }, 100);
+            }
           }}
         />
       </div>
+      {/* Custom legend for graph nodes */}
+      {option && nodesRef.current.length > 0 && (
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: '15px',
+          marginTop: '20px',
+          paddingTop: '15px',
+          borderTop: '1px solid #334155',
+        }}>
+          {nodesRef.current.map((node: any) => (
+            <div
+              key={node.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={() => {
+                if (chartRef.current) {
+                  const chart = chartRef.current.getEchartsInstance();
+                  const nodeId = node.id;
+
+                  // Find all outgoing links from this node
+                  linksRef.current.forEach((link: GraphLink, index: number) => {
+                    if (link.source === nodeId) {
+                      chart.dispatchAction({
+                        type: 'highlight',
+                        seriesIndex: 0,
+                        dataIndex: index,
+                        dataType: 'edge',
+                      });
+                    } else {
+                      chart.dispatchAction({
+                        type: 'downplay',
+                        seriesIndex: 0,
+                        dataIndex: index,
+                        dataType: 'edge',
+                      });
+                    }
+                  });
+
+                  // Also highlight the node
+                  const nodeIndex = nodesRef.current.findIndex((n: any) => n.id === nodeId);
+                  if (nodeIndex >= 0) {
+                    chart.dispatchAction({
+                      type: 'highlight',
+                      seriesIndex: 0,
+                      dataIndex: nodeIndex,
+                      dataType: 'node',
+                    });
+                  }
+                }
+              }}
+              onMouseLeave={() => {
+                if (chartRef.current) {
+                  const chart = chartRef.current.getEchartsInstance();
+                  // Reset all links to normal state
+                  linksRef.current.forEach((_link: GraphLink, index: number) => {
+                    chart.dispatchAction({
+                      type: 'downplay',
+                      seriesIndex: 0,
+                      dataIndex: index,
+                      dataType: 'edge',
+                    });
+                  });
+                  // Reset all nodes
+                  chart.dispatchAction({
+                    type: 'downplay',
+                    seriesIndex: 0,
+                  });
+                }
+              }}
+            >
+              <div
+                style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  backgroundColor: node.itemStyle?.color || '#627EEA',
+                }}
+              />
+              <span style={{ color: '#94a3b8', fontSize: '12px' }}>{node.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
