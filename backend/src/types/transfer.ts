@@ -30,20 +30,20 @@ export interface Transfer {
   mode: TransferMode;
   tokenType: TokenType;
   amount: string; // In token base units (e.g., 1000000 = 1 USDC with 6 decimals)
-  
+
   // Transaction hashes
   burnTxHash: string;
   mintTxHash: string | null;
-  
+
   // Timestamps
   burnAt: Date;
   irisAttestedAt: Date | null;
   mintAt: Date | null;
-  
+
   // Status
   status: TransferStatus;
   errorReason: string | null;
-  
+
   // Additional metadata
   nonce: string;
   messageBody: string | null;
@@ -52,56 +52,5 @@ export interface Transfer {
   minFinalityThreshold: number;
   maxFee: string;
   finalityThresholdExecuted: number | null;
-}
-
-export interface TransferEvent {
-  type: 'BURN' | 'MESSAGE_SENT' | 'ATTESTATION' | 'RECEIVE_MESSAGE' | 'MINT' | 'ERROR';
-  transferId: string;
-  timestamp: Date;
-  data: any;
-}
-
-export interface BurnEvent {
-  domain: number;
-  nonce: string;
-  txHash: string;
-  blockNumber: number;
-  timestamp: Date;
-  sender: string;
-  recipient: string;
-  amount: string;
-  destinationDomain: number;
-  minFinalityThreshold: number;
-  tokenType: TokenType;
-  tokenAddress: string;
-}
-
-export interface MessageSentEvent {
-  domain: number;
-  nonce: string;
-  txHash: string;
-  timestamp: Date;
-  messageBody: string;
-  sender: string;
-}
-
-export interface ReceiveMessageEvent {
-  domain: number;
-  nonce: string;
-  txHash: string;
-  blockNumber: number;
-  timestamp: Date;
-  caller: string;
-  sourceDomain: number;
-}
-
-export interface MintEvent {
-  domain: number;
-  nonce: string;
-  txHash: string;
-  timestamp: Date;
-  recipient: string;
-  amount: string;
-  tokenType: TokenType;
 }
 
