@@ -1,0 +1,6 @@
+# robots.txt for CCTP Network Explorer
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://cctp-visualizer.tech/sitemap.xml

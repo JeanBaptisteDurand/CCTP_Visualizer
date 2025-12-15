@@ -1,0 +1,12 @@
+/* TEAM */
+Developer: CCTP Visualizer Team
+Contact: https://cctp-visualizer.tech
+
+/* THANKS */
+CCTP Protocol by Circle
+QuickNode for RPC infrastructure
+
+/* SITE */
+Last update: 2025/12/14
+Standards: HTML5, CSS3, JavaScript ES6+
+Components: React, Vite, TypeScript

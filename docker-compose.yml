@@ -9,8 +9,8 @@ services:
       POSTGRES_USER: cctp_user
       POSTGRES_PASSWORD: cctp_password
       POSTGRES_DB: cctp_visualizer
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -46,13 +46,14 @@ services:
       RPC_SEI: ${RPC_SEI:-}
       RPC_HYPEREVM: ${RPC_HYPEREVM:-}
       RPC_INK: ${RPC_INK:-}
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - cctp_network
+      - proxy
     restart: unless-stopped
 
   # Frontend
@@ -60,15 +61,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
     container_name: cctp_frontend
-    environment:
-      VITE_API_URL: http://localhost:3001
-    ports:
-      - "5173:80"
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
       - cctp_network
+      - proxy
     restart: unless-stopped
 
 volumes:
@@ -78,3 +80,5 @@ volumes:
 networks:
   cctp_network:
     driver: bridge
+  proxy:
+    external: true
