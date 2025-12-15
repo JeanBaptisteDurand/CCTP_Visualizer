@@ -40,9 +40,9 @@ readme
 
 agent ia pour la selection plage horaire
 
-favicon, robot txt, ect...
-
 nb de transaction
+
+avoir assez de url de quick node pour durer une journee
 
 
 ////////

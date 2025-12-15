@@ -1,0 +1,18 @@
+{
+  "name": "CCTP Network Explorer",
+  "short_name": "CCTP Explorer",
+  "description": "Real-time visualization and analytics for the Cross-Chain Transfer Protocol (CCTP) network",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.webp",
+      "sizes": "any",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    }
+  ]
+}
